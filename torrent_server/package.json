@@ -1,0 +1,13 @@
+{
+  "name": "lumflix-torrent-server",
+  "version": "1.0.0",
+  "description": "Servidor de streaming torrent do LUMFLIX",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "webtorrent": "^2.8.4"
+  }
+}

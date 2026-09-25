@@ -1,281 +1,743 @@
-<!--
-	[PAGINA-LEITOR] reproduzir.html
-	Onde se ve o filme.
-
-	Chega-se aqui pelo Play de um classico, com ?arquivo= o identificador
-	do item no Internet Archive. O resto — titulo, ano, cartaz — vem da
-	fila de classicos, que ja esta em cache: assim o endereco fica curto
-	e nada do que se mostra vem escrito no proprio endereco.
-
-	O video e servido pelo Archive, que responde a pedidos Range. E isso
-	que faz o saltar para o minuto 40 funcionar sem descarregar o resto.
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>LumFlix | Player</title>
+
 	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
 	<link rel="stylesheet" href="../catalogo.css">
 	<link rel="stylesheet" href="reproduzir.css">
 </head>
+
 <body>
+
 	<header class="leitor-topo">
-		<a class="voltar" href="../filmes/filmes.html">&larr; Back</a>
+
+		<a class="voltar" href="../filmes/filmes.html">
+			&larr; Back
+		</a>
 
 		<div class="leitor-titulo">
 			<h1 id="titulo">Loading&hellip;</h1>
 			<p class="meta" id="meta"></p>
 		</div>
+
 	</header>
 
+
 	<main class="palco">
+
 		<div class="moldura">
-			<video id="video" controls playsinline preload="metadata"></video>
+
+			<video
+				id="video"
+				controls
+				playsinline
+				preload="metadata">
+			</video>
+
 
 			<div class="sobreposto" id="espera">
+
 				<div class="disco" aria-hidden="true"></div>
-				<p id="esperaTexto">Fetching the film from the Internet Archive&hellip;</p>
+
+				<p id="esperaTexto">
+					Preparing the film&hellip;
+				</p>
+
 			</div>
+
 
 			<div class="sobreposto" id="falha" hidden>
+
 				<p>
-					<strong>This one will not play</strong>
-					<span id="falhaTexto">The Internet Archive did not answer. It is usually
-					back in a moment.</span>
+
+					<strong>
+						This one will not play
+					</strong>
+
+					<span id="falhaTexto">
+						The video server did not answer.
+					</span>
+
 				</p>
-				<a class="button pill" href="../filmes/filmes.html">Back to movies</a>
+
+				<a
+					class="button pill"
+					href="../filmes/filmes.html">
+					Back to movies
+				</a>
+
 			</div>
+
 		</div>
+
 	</main>
 
+
 	<footer class="leitor-rodape">
+
 		<p id="creditos">
-			Streamed from the <a href="https://archive.org/" target="_blank" rel="noopener">Internet
-			Archive</a>.
+			Streamed by LUMFLIX.
 		</p>
+
 	</footer>
 
+
 	<script>
-		const $ = (id) => document.getElementById(id);
-		const SESSAO = '../../authentication_page/Shared/session.php';
-		const LOGIN = '../../authentication_page/Login/auth.html';
-		const ARCHIVE = '../archive.php';
-		const CONTINUAR = '../continuar_ver/ver.php';
 
-		const arquivo = new URLSearchParams(window.location.search).get('arquivo') || '';
+		const $ = (id) =>
+			document.getElementById(id);
 
-		/* ---- estado ------------------------------------------------------ */
 
-		let filme = null;        /* o item da fila de classicos */
-		let token = '';          /* CSRF do continuar a ver */
-		let retomarEm = 0;       /* segundos de onde arrancar */
+		/* ---------------------------------------------------------
+		 * CONFIG
+		 * --------------------------------------------------------- */
+
+		const SESSAO =
+			'../../authentication_page/Shared/session.php';
+
+		const LOGIN =
+			'../../authentication_page/Login/auth.html';
+
+		const TORRENT =
+			'../torrent.php';
+
+		const CONTINUAR =
+			'../continuar_ver/ver.php';
+
+
+		/*
+		 * Neste momento o teste aceita:
+		 *
+		 * ?arquivo=...
+		 *
+		 * e
+		 *
+		 * ?magnet=magnet:...
+		 *
+		 * Mais tarde o magnet será obtido automaticamente
+		 * pela API.
+		 */
+
+		const params =
+			new URLSearchParams(window.location.search);
+
+		const arquivo =
+			params.get('arquivo') || '';
+
+		const magnet =
+			params.get('magnet') || '';
+
+
+		/* ---------------------------------------------------------
+		 * ESTADO
+		 * --------------------------------------------------------- */
+
+		let filme = null;
+
+		let token = '';
+
+		let retomarEm = 0;
+
 		let registado = false;
+
 		let ultimoEnvio = 0;
 
+
+		/* ---------------------------------------------------------
+		 * ERRO
+		 * --------------------------------------------------------- */
+
 		function falhar(texto) {
+
 			$('espera').hidden = true;
+
 			$('falha').hidden = false;
-			if (texto) $('falhaTexto').textContent = texto;
+
+			if (texto) {
+				$('falhaTexto').textContent = texto;
+			}
 		}
 
-		/* ---- arranque ----------------------------------------------------- */
+
+		/* ---------------------------------------------------------
+		 * ARRANQUE
+		 * --------------------------------------------------------- */
 
 		(async () => {
-			/* Guarda de sessao, como nas outras paginas: encaminha quem nao
-			   tem sessao, nao protege o conteudo — o HTML ja foi servido. */
+
+			/*
+			 * Verificar sessão.
+			 */
 			try {
-				const res = await (await fetch(SESSAO, { credentials: 'same-origin' })).json();
+
+				const res = await (
+					await fetch(SESSAO, {
+						credentials: 'same-origin'
+					})
+				).json();
+
+
 				if (!res.authenticated) {
+
 					window.location.replace(LOGIN);
+
 					return;
 				}
-			} catch (err) { /* servidor em baixo: segue e falha adiante */ }
 
-			if (!arquivo) {
-				falhar('No film was chosen. Pick one from the Classics row.');
+			} catch (err) {
+
+				console.error(
+					'Sessão:',
+					err
+				);
+
+			}
+
+
+			if (!arquivo && !magnet) {
+
+				falhar(
+					'No film was selected.'
+				);
+
 				return;
 			}
 
-			await Promise.all([carregarFilme(), carregarProgresso()]);
+
+			/*
+			 * Carregar progresso e iniciar vídeo.
+			 */
+			await carregarProgresso();
+
 			await tocar();
+
 		})();
 
-		/**
-		 * O filme na fila de classicos. A fila esta em cache no servidor,
-		 * por isso isto custa uns milisegundos e evita passar o titulo e a
-		 * sinopse pelo endereco, onde qualquer um os podia trocar.
-		 */
+
+		/* ---------------------------------------------------------
+		 * FILME
+		 *
+		 * Mantémos a informação que vinha do catálogo.
+		 *
+		 * Para já o título vem do arquivo se não houver catálogo.
+		 * --------------------------------------------------------- */
+
 		async function carregarFilme() {
-			try {
-				const res = await (await fetch(`${ARCHIVE}?action=catalogo`, {
-					headers: { 'Accept': 'application/json' },
-					credentials: 'same-origin',
-				})).json();
 
-				if (res.status !== 'ok') return;
+			if (!arquivo) {
+				return;
+			}
 
-				filme = (res.itens || []).find((x) => x.arquivo === arquivo) || null;
-			} catch (err) { /* fica sem cabecalho, mas o video ainda toca */ }
-
-			if (!filme) return;
-
-			document.title = `LumFlix | ${filme.titulo}`;
-			$('titulo').textContent = filme.titulo;
-			$('meta').textContent = [filme.ano, (filme.categorias || []).join(', ')]
-				.filter(Boolean).join(' · ');
-
-			$('creditos').innerHTML =
-				`<strong>${esc(filme.titulo)}</strong> (${esc(filme.ano)}) is in the public domain. `
-				+ `Streamed from the <a href="https://archive.org/details/${encodeURIComponent(arquivo)}" `
-				+ `target="_blank" rel="noopener">Internet Archive</a>.`;
+			/*
+			 * Não precisamos do Archive.
+			 *
+			 * O catálogo atual pode continuar a fornecer os dados
+			 * visuais através do próprio frontend.
+			 */
 		}
 
-		/** Onde se ficou da ultima vez, em percentagem. */
-		async function carregarProgresso() {
-			try {
-				const res = await (await fetch(`${CONTINUAR}?action=listar`, {
-					headers: { 'Accept': 'application/json' },
-					credentials: 'same-origin',
-				})).json();
 
-				if (res.status !== 'ok') return;
+		/* ---------------------------------------------------------
+		 * PROGRESSO
+		 * --------------------------------------------------------- */
+
+		async function carregarProgresso() {
+
+			try {
+
+				const res = await (
+					await fetch(
+						`${CONTINUAR}?action=listar`,
+						{
+							headers: {
+								'Accept':
+									'application/json'
+							},
+							credentials:
+								'same-origin'
+						}
+					)
+				).json();
+
+
+				if (res.status !== 'ok') {
+					return;
+				}
+
 
 				token = res.token;
 
-				const ja = (res.itens || []).find((x) => x.titulo === (filme && filme.titulo));
-				/* acima de 97% considera-se visto: retomar no fim so mostrava
-				   os creditos a passar */
-				if (ja && ja.progresso > 0 && ja.progresso < 97) {
-					retomarEm = ja.progresso;
+
+				/*
+				 * Só conseguimos recuperar o título se
+				 * o catálogo o fornecer.
+				 *
+				 * Por enquanto procuramos pelo arquivo.
+				 */
+				const ja =
+					(res.itens || []).find(
+						x => x.titulo === arquivo
+					);
+
+
+				if (
+					ja &&
+					ja.progresso > 0 &&
+					ja.progresso < 97
+				) {
+
+					retomarEm =
+						ja.progresso;
 				}
-			} catch (err) { /* comeca do principio */ }
+
+			} catch (err) {
+
+				console.error(
+					'Progresso:',
+					err
+				);
+
+			}
 		}
 
-		/* ---- video --------------------------------------------------------- */
+
+		/* ---------------------------------------------------------
+		 * INICIAR TORRENT
+		 * --------------------------------------------------------- */
+
+		async function iniciarTorrent() {
+
+			if (!magnet) {
+
+				throw new Error(
+					'Este filme ainda não tem magnet associado.'
+				);
+			}
+
+
+			const url =
+				`${TORRENT}?action=start&magnet=`
+				+ encodeURIComponent(magnet);
+
+
+			const resposta =
+				await fetch(url, {
+					headers: {
+						'Accept':
+							'application/json'
+					},
+					credentials:
+						'same-origin'
+				});
+
+
+			if (!resposta.ok) {
+
+				throw new Error(
+					'Não foi possível contactar o servidor torrent.'
+				);
+			}
+
+
+			const res =
+				await resposta.json();
+
+
+			if (
+				res.status !== 'ok' ||
+				!res.id
+			) {
+
+				throw new Error(
+					res.error ||
+					'Não foi possível iniciar o torrent.'
+				);
+			}
+
+
+			return res.id;
+		}
+
+
+		/* ---------------------------------------------------------
+		 * ESPERAR PELO VÍDEO
+		 * --------------------------------------------------------- */
+
+		async function esperarVideo(id) {
+
+			for (
+				let tentativa = 0;
+				tentativa < 120;
+				tentativa++
+			) {
+
+				const resposta =
+					await fetch(
+						`${TORRENT}?action=stream&id=${encodeURIComponent(id)}`,
+						{
+							headers: {
+								'Accept':
+									'application/json'
+							},
+							credentials:
+								'same-origin'
+						}
+					);
+
+
+				if (resposta.ok) {
+
+					const res =
+						await resposta.json();
+
+
+					if (
+						res.status === 'ok' &&
+						res.video
+					) {
+
+						return res.video;
+					}
+				}
+
+
+				/*
+				 * Esperar 1 segundo.
+				 */
+				await new Promise(
+					resolve =>
+						setTimeout(resolve, 1000)
+				);
+			}
+
+
+			throw new Error(
+				'O vídeo demorou demasiado tempo a preparar.'
+			);
+		}
+
+
+		/* ---------------------------------------------------------
+		 * TOCAR
+		 * --------------------------------------------------------- */
 
 		async function tocar() {
-			let res;
 
 			try {
-				res = await (await fetch(`${ARCHIVE}?action=video&arquivo=${encodeURIComponent(arquivo)}`, {
-					headers: { 'Accept': 'application/json' },
-					credentials: 'same-origin',
-				})).json();
+
+				$('esperaTexto').textContent =
+					'Connecting to the torrent network…';
+
+
+				/*
+				 * 1. Adicionar torrent ao servidor.
+				 */
+				const id =
+					await iniciarTorrent();
+
+
+				$('esperaTexto').textContent =
+					'Preparing video…';
+
+
+				/*
+				 * 2. Esperar que o WebTorrent encontre
+				 *    o ficheiro de vídeo.
+				 */
+				const videoUrl =
+					await esperarVideo(id);
+
+
+				/*
+				 * 3. Finalmente o browser recebe apenas
+				 *    HTTP vídeo.
+				 */
+				$('video').src =
+					videoUrl;
+
+
 			} catch (err) {
-				falhar('Could not reach the server.');
-				return;
-			}
 
-			if (res.status !== 'ok' || !res.video) {
-				/* O servidor ja tomou nota: este filme sai da fila e nao
-				   volta a aparecer com o selo de reproduzivel. Vale a pena
-				   dize-lo, senao parece que o site esta avariado. */
-				falhar(res.error === 'sem_video'
-					? 'The Internet Archive no longer has a playable file for this one. '
-						+ 'It has been taken out of the Classics row.'
-					: 'The Internet Archive did not answer. Try again in a moment.');
-				return;
-			}
+				console.error(
+					'Player:',
+					err
+				);
 
-			$('video').src = res.video;
+
+				falhar(
+					err.message ||
+					'Could not start the video.'
+				);
+			}
 		}
 
-		const video = $('video');
 
-		/* O ficheiro vem de fora e pode levar uns segundos: a espera so sai
-		   quando ha imagem a serio, nao quando o src e posto. */
-		video.addEventListener('loadeddata', () => {
-			$('espera').hidden = true;
+		const video =
+			$('video');
 
-			/* retomar: a percentagem guardada vira segundos agora que se
-			   conhece a duracao */
-			if (retomarEm > 0 && Number.isFinite(video.duration)) {
-				video.currentTime = video.duration * (retomarEm / 100);
+
+		/* ---------------------------------------------------------
+		 * VÍDEO PRONTO
+		 * --------------------------------------------------------- */
+
+		video.addEventListener(
+			'loadeddata',
+			() => {
+
+				$('espera').hidden = true;
+
+
+				/*
+				 * Retomar.
+				 */
+				if (
+					retomarEm > 0 &&
+					Number.isFinite(
+						video.duration
+					)
+				) {
+
+					video.currentTime =
+						video.duration *
+						(retomarEm / 100);
+				}
+
 			}
-		});
+		);
 
-		/*
-		 * Falha do lado do browser: o endereco estava bom e o ficheiro nao
-		 * toca — formato que este browser nao le, ou a ligacao caiu a meio.
-		 *
-		 * Nao se avisa o servidor, ao contrario da falha de cima: isto
-		 * tanto pode ser o filme como pode ser esta ligacao ou este
-		 * browser, e tirar o filme a toda a gente por causa de um caso
-		 * destes seria tirar por engano.
-		 */
-		video.addEventListener('error', () => {
-			falhar('This file would not play here. It may be a format this browser '
-				+ 'does not read, or the connection dropped.');
-		});
 
-		video.addEventListener('play', registar);
+		/* ---------------------------------------------------------
+		 * ERRO DO PLAYER
+		 * --------------------------------------------------------- */
 
-		/* Guardar a meio, sem exagero: uma vez a cada dez segundos de filme.
-		   A cada timeupdate seriam quatro escritas por segundo no ficheiro
-		   das contas. */
-		video.addEventListener('timeupdate', () => {
-			if (!Number.isFinite(video.duration) || video.duration === 0) return;
-			if (video.currentTime - ultimoEnvio < 10) return;
+		video.addEventListener(
+			'error',
+			() => {
 
-			ultimoEnvio = video.currentTime;
-			guardarProgresso();
-		});
+				falhar(
+					'The video could not be played by this browser.'
+				);
 
-		/* ao sair e ao pausar guarda-se logo, sem esperar pelos dez segundos */
-		video.addEventListener('pause', guardarProgresso);
-		window.addEventListener('pagehide', guardarProgresso);
+			}
+		);
 
-		/* ---- continuar a ver ------------------------------------------------ */
 
-		function chamar(action, campos) {
-			const corpo = new FormData();
-			corpo.append('action', action);
-			corpo.append('token', token);
-			Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+		/* ---------------------------------------------------------
+		 * CONTINUAR A VER
+		 * --------------------------------------------------------- */
 
-			return fetch(CONTINUAR, {
-				method: 'POST',
-				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-				credentials: 'same-origin',
-				body: corpo,
-				/* o pedido de saida tem de sobreviver ao fecho da pagina */
-				keepalive: true,
-			});
-		}
+		video.addEventListener(
+			'play',
+			registar
+		);
 
-		/** Poe o filme no "Continue watching" assim que comeca mesmo a tocar. */
+
+		video.addEventListener(
+			'timeupdate',
+			() => {
+
+				if (
+					!Number.isFinite(video.duration) ||
+					video.duration === 0
+				) {
+					return;
+				}
+
+
+				if (
+					video.currentTime -
+					ultimoEnvio < 10
+				) {
+					return;
+				}
+
+
+				ultimoEnvio =
+					video.currentTime;
+
+
+				guardarProgresso();
+
+			}
+		);
+
+
+		video.addEventListener(
+			'pause',
+			guardarProgresso
+		);
+
+
+		window.addEventListener(
+			'pagehide',
+			guardarProgresso
+		);
+
+
+		/* ---------------------------------------------------------
+		 * REGISTAR
+		 * --------------------------------------------------------- */
+
 		async function registar() {
-			if (registado || !filme || !token) return;
+
+			if (
+				registado ||
+				!token
+			) {
+				return;
+			}
+
+
 			registado = true;
 
+
 			try {
-				await chamar('registar', {
-					titulo: filme.titulo,
-					categoria: (filme.categorias || [])[0] || '',
-					extra: [filme.ano, filme.nota ? `★ ${filme.nota}` : null].filter(Boolean).join(' · '),
-					arte: filme.fundo || filme.cartaz || '',
-				});
-			} catch (err) { /* o filme continua a tocar na mesma */ }
+
+				await chamar(
+					'registar',
+					{
+						titulo:
+							arquivo,
+
+						categoria:
+							'',
+
+						extra:
+							'',
+
+						arte:
+							''
+					}
+				);
+
+			} catch (err) {
+
+				console.error(
+					'Registar:',
+					err
+				);
+
+			}
 		}
+
+
+		/* ---------------------------------------------------------
+		 * GUARDAR PROGRESSO
+		 * --------------------------------------------------------- */
 
 		function guardarProgresso() {
-			if (!filme || !token || !Number.isFinite(video.duration) || video.duration === 0) return;
 
-			const pct = Math.round((video.currentTime / video.duration) * 100);
-			if (pct <= 0) return;
+			if (
+				!token ||
+				!Number.isFinite(
+					video.duration
+				) ||
+				video.duration === 0
+			) {
+				return;
+			}
+
+
+			const pct =
+				Math.round(
+					(video.currentTime /
+						video.duration) *
+					100
+				);
+
+
+			if (pct <= 0) {
+				return;
+			}
+
 
 			try {
-				chamar('progresso', { titulo: filme.titulo, progresso: Math.min(100, pct) });
-			} catch (err) { /* nao vale a pena estragar a sessao por isto */ }
+
+				chamar(
+					'progresso',
+					{
+						titulo:
+							arquivo,
+
+						progresso:
+							Math.min(
+								100,
+								pct
+							)
+					}
+				);
+
+			} catch (err) {
+
+				console.error(
+					'Progresso:',
+					err
+				);
+
+			}
 		}
 
-		function esc(v) {
-			return String(v ?? '').replace(/[&<>"']/g, (c) => ({
-				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-			}[c]));
+
+		/* ---------------------------------------------------------
+		 * POST CONTINUAR
+		 * --------------------------------------------------------- */
+
+		function chamar(
+			action,
+			campos
+		) {
+
+			const corpo =
+				new FormData();
+
+
+			corpo.append(
+				'action',
+				action
+			);
+
+
+			corpo.append(
+				'token',
+				token
+			);
+
+
+			Object.entries(
+				campos
+			).forEach(
+				([k, v]) =>
+					corpo.append(k, v)
+			);
+
+
+			return fetch(
+				CONTINUAR,
+				{
+					method: 'POST',
+
+					headers: {
+						'X-Requested-With':
+							'XMLHttpRequest',
+
+						'Accept':
+							'application/json'
+					},
+
+					credentials:
+						'same-origin',
+
+					body: corpo,
+
+					keepalive: true
+				}
+			);
 		}
+
 	</script>
+
 </body>
 </html>
