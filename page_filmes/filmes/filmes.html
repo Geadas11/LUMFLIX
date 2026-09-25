@@ -1,0 +1,977 @@
+<!--
+	[PAGINA-FILMES] filmes.html
+	O estilo vive em ../catalogo.css, partilhado com a pagina de series:
+	sao a mesma pagina com dados diferentes.
+
+	Catalogo ao estilo Netflix: destaque no topo e carrosseis por
+	genero. Os dados vem da TMDB, pedidos ao ../tmdb.php — nunca a TMDB
+	directamente, para a credencial ficar no servidor.
+
+	Cada titulo traz todos os generos que tem, por isso aparece em todas
+	as filas a que pertence, como na Netflix.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LumFlix | Movies</title>
+	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="../catalogo.css">
+</head>
+<body>
+	<header class="topbar" id="topbar">
+		<span class="brand-logo">LUMFLIX</span>
+
+		<nav class="topnav">
+			<a href="filmes.html" aria-current="page">Movies</a>
+			<a href="../series/series.html">Series</a>
+			<a href="../lista/lista.html">My list</a>
+			<a href="../continuar_ver/ver.html">Continue watching</a>
+		</nav>
+
+		<div class="topbar-end">
+			<input type="search" class="search" id="search" placeholder="Search titles..." aria-label="Search titles">
+			<a class="avatar" id="avatar" href="../conta/conta.html" aria-label="My account">·</a>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</div>
+	</header>
+
+	<main>
+		<section class="hero" id="hero">
+			<!-- arte do titulo em destaque; fica escondida se nao houver -->
+			<img class="hero-arte" id="heroArte" alt="" hidden>
+
+			<!-- Fica fora do hero-content de proposito: encostado ao canto,
+			     e nao em cima do titulo. Dentro, subia com o texto e ia
+			     parar por baixo da barra de topo. -->
+			<span class="hero-kicker">Today&rsquo;s pick</span>
+
+			<div class="hero-content">
+				<h1 id="heroTitle"></h1>
+				<p class="meta" id="heroMeta"></p>
+				<div class="hero-actions">
+					<button class="button pill" type="button" id="heroPlay">▶ Play</button>
+					<button class="button pill ghost" type="button" id="heroInfo">More info</button>
+				</div>
+			</div>
+		</section>
+
+		<div class="rows" id="rows"></div>
+	</main>
+
+	<!-- Ficha do filme, preenchida ao clicar num cartao -->
+	<div class="sheet" id="sheet" hidden>
+		<div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+			<button type="button" class="sheet-close" id="sheetClose" aria-label="Close">&times;</button>
+			<div class="sheet-poster" id="sheetPoster">
+				<img class="sheet-poster-img" id="sheetPosterImg" alt="" hidden>
+				<span></span>
+			</div>
+			<div class="sheet-body">
+				<h2 id="sheetTitle"></h2>
+				<p class="meta" id="sheetMeta"></p>
+				<p class="synopsis" id="sheetSynopsis"></p>
+				<div class="hero-actions">
+					<button class="button pill" type="button" id="sheetPlay">▶ Play</button>
+					<button class="button pill ghost" type="button" id="sheetLista">+ My list</button>
+				</div>
+
+				<!-- Temporadas: so aparece quando o titulo as tem (series) -->
+				<div class="sheet-seasons" id="sheetSeasons" hidden>
+					<span class="seasons-label">Seasons</span>
+					<div class="seasons-track" id="seasonsTrack"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const SESSAO = '../../authentication_page/Shared/session.php';
+		const LOGIN = '../../authentication_page/Login/auth.html';
+
+		/* Guarda de sessao. E do lado do cliente, por isso serve para
+		   encaminhar quem nao tem sessao, nao para proteger o conteudo:
+		   o HTML ja foi descarregado quando isto corre. Proteger a serio
+		   implica servir a pagina por PHP. */
+		(async () => {
+			try {
+				const resp = await fetch(SESSAO, { credentials: 'same-origin' });
+				const res = await resp.json();
+				if (!res.authenticated) {
+					window.location.replace(LOGIN);
+					return;
+				}
+				$('avatar').textContent = (res.user || '?')[0].toUpperCase();
+
+				/* sem email nao ha como enviar os avisos de mensalidade */
+				if (!res.tem_email) avisarSemEmail();
+			} catch (err) {
+				/* servidor em baixo ou pagina aberta como ficheiro: deixa
+				   ver o catalogo em vez de a atirar para um login que
+				   tambem nao vai funcionar */
+			}
+		})();
+
+
+		/**
+		 * Faixa a lembrar que falta associar um email. E construida aqui em
+		 * vez de estar no HTML para a pagina nao ter markup parado a espera
+		 * de uma condicao que quase nunca se verifica.
+		 *
+		 * Fecha-se por sessao do separador: volta a aparecer no proximo
+		 * login, ate haver mesmo um email.
+		 */
+		function avisarSemEmail() {
+			try {
+				if (sessionStorage.getItem('lumflix:aviso-email') === 'fechado') return;
+			} catch (err) { /* modo privado: mostra na mesma */ }
+
+			const caixa = document.createElement('aside');
+			caixa.className = 'aviso-email';
+			caixa.setAttribute('role', 'status');
+			caixa.innerHTML = `
+				<div class="aviso-email-texto">
+					<strong>No email on file</strong>
+					<p>That is where the billing reminders go.</p>
+				</div>
+				<a class="button pill" href="../conta/conta.html">Set it</a>
+				<button type="button" class="aviso-email-fechar" aria-label="Close">&times;</button>`;
+
+			caixa.querySelector('.aviso-email-fechar').addEventListener('click', () => {
+				try { sessionStorage.setItem('lumflix:aviso-email', 'fechado'); } catch (err) {}
+				caixa.remove();
+			});
+
+			document.body.appendChild(caixa);
+		}
+
+		/* ---- catalogo ---------------------------------------------------- */
+
+		/**
+		 * O catalogo vem da TMDB, pelo ../tmdb.php. A pagina nunca fala com
+		 * a TMDB: fala com o proxy, que guarda a credencial e poe a resposta
+		 * em cache.
+		 *
+		 * Cada titulo traz um "categorias" com todos os generos que tem, e
+		 * nao um genero so. E o que faz o mesmo filmes aparecer na fila
+		 * de acao e na de aventura, como na Netflix.
+		 */
+		const TIPO = 'movie';
+		const TMDB = '../tmdb.php';
+
+		/* Os classicos do Internet Archive: e a unica parte do catalogo que
+		   se pode mesmo ver, porque sao de dominio publico e o Archive
+		   serve-os com suporte a Range. */
+		const ARCHIVE = '../archive.php';
+
+		/* Ordem por que as filas aparecem. Um genero que a TMDB devolva e
+		   nao esteja aqui vem depois, dos que tem mais titulos para os que
+		   tem menos: assim uma fila nunca fica esquecida no fim. */
+		const ORDEM_TEMAS = ['Action', 'Adventure', 'Comedy', 'Drama', 'Romance',
+			'Thriller', 'Horror', 'Sci-Fi', 'Fantasy', 'Animation', 'Family',
+			'Crime', 'Mystery', 'Documentary', 'History', 'Music', 'War',
+			'Western'];
+
+		/* Abaixo disto a fila tinha menos cartazes do que uma pagina e as
+		   setas ficavam sem nada para rodar. A procura tem fila propria e
+		   nao passa por aqui. */
+		const MINIMO_FILA = 4;
+
+		let CATALOGO = [];
+		let POPULARES = new Set();
+
+		/* Todos os titulos que a pagina conhece, pelo id, venham do catalogo
+		   ou de uma procura. E daqui que sai a ficha quando se clica num
+		   cartaz: antes o cartaz guardava a posicao no CATALOGO, e um
+		   resultado de procura, que nao esta nessa lista, nao tinha numero
+		   nenhum para guardar. */
+		const PORID = new Map();
+
+		function indexar(itens) {
+			itens.forEach((f) => PORID.set(f.id, f));
+		}
+
+		function pedirJson(url) {
+			return fetch(url, {
+				headers: { 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			}).then((r) => r.json());
+		}
+
+		async function carregarCatalogo() {
+			/* Os dois ao mesmo tempo. O do Archive falha sozinho se falhar:
+			   sem classicos a pagina continua a ser um catalogo. */
+			const [res, classicos] = await Promise.all([
+				pedirJson(`${TMDB}?action=catalogo&tipo=${TIPO}`),
+				pedirJson(`${ARCHIVE}?action=catalogo`).catch(() => null),
+			]);
+
+			if (res.status !== 'ok') {
+				throw new Error(res.error || 'sem_catalogo');
+			}
+
+			CATALOGO = res.itens;
+			POPULARES = new Set(res.populares);
+
+			juntarClassicos(classicos);
+			indexar(CATALOGO);
+		}
+
+		/**
+		 * Mistura os classicos no catalogo.
+		 *
+		 * Vem com id do TMDB, o mesmo que o resto, por isso alguns ja la
+		 * estao — chegaram pela lista dos melhor pontuados. Nesses so se
+		 * acrescenta o "arquivo", e o filme passa a ser tocavel em todas as
+		 * filas onde ja aparecia, nao so na dos classicos.
+		 */
+		function juntarClassicos(res) {
+			if (!res || res.status !== 'ok') return;
+
+			const porId = new Map(CATALOGO.map((f) => [f.id, f]));
+
+			(res.itens || []).forEach((c) => {
+				const ja = porId.get(c.id);
+				if (ja) {
+					ja.arquivo = c.arquivo;
+				} else {
+					CATALOGO.push(c);
+				}
+			});
+		}
+
+		/**
+		 * Duracao, classificacao etaria e numero de temporadas. Nao vem na
+		 * listagem: sao um pedido por titulo, por isso pedem-se so quando
+		 * fazem falta e o resultado fica guardado no proprio item.
+		 */
+		async function detalheDe(f) {
+			if (f.detalhe) return f;
+			f.detalhe = true;
+
+			try {
+				const resp = await fetch(`${TMDB}?action=detalhe&tipo=${TIPO}&id=${f.id}`, {
+					headers: { 'Accept': 'application/json' },
+					credentials: 'same-origin',
+				});
+				const res = await resp.json();
+
+				if (res.status === 'ok') {
+					f.duracao = res.duracao || '';
+					f.idade = res.idade || '';
+					f.temporadas = res.temporadas || null;
+				}
+			} catch (err) {
+				/* fica sem estes campos: a linha mostra o que tem */
+			}
+
+			return f;
+		}
+
+		/* Endereco de imagem da TMDB e nada mais. As imagens vao para dentro
+		   de atributos src, e uma lista de generos que viesse alterada nao
+		   deve poder apontar a pagina para outro sitio. */
+		const arteValida = (url) => typeof url === 'string'
+			&& /^https:\/\/image\.tmdb\.org\/t\/p\//.test(url);
+
+		/* Cor do cartaz a partir do titulo: o mesmo titulo da sempre a mesma
+		   cor, e fica tudo dentro da gama quente da paleta. */
+		function cores(titulo) {
+			let h = 0;
+			for (const ch of titulo) h = (h * 31 + ch.charCodeAt(0)) % 360;
+			const matiz = 18 + (h % 44);            /* âmbar a dourado */
+
+			return {
+				c1: `hsl(${matiz} ${44 + (h % 20)}% ${26 + (h % 12)}%)`,
+				c2: `hsl(${(matiz + 16) % 360} 40% 7%)`,
+				/* foco de luz: a mesma matiz bem mais clara, e o que dá
+				   profundidade ao cartaz em vez de um degradê chapado */
+				c3: `hsl(${(matiz + 8) % 360} 72% 62% / 0.5)`,
+			};
+		}
+
+		/* Junta so o que existe. A duracao e a idade chegam depois da
+		   listagem e, sem este filtro, a linha ficava com separadores a
+		   volta de campos vazios. A classificacao vem ja escrita pela TMDB
+		   ("PG-13", "TV-MA"), por isso nao leva "+" atras. */
+		const metaDe = (f) => [f.ano, f.duracao, f.idade].filter(Boolean).join(' · ');
+
+		/* Linha do cartaz: curta, de uma linha, e sempre preenchida — a
+		   duracao ainda nao e conhecida quando a fila e desenhada. */
+		const metaCartao = (f) => [f.ano, f.nota ? `★ ${f.nota}` : null]
+			.filter(Boolean).join(' · ');
+
+		const linhaFicha = (f) => [metaDe(f), (f.categorias || []).join(', ')]
+			.filter(Boolean).join(' · ');
+
+		function esc(v) {
+			return String(v ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+			}[c]));
+		}
+
+		/* ---- destaque ---------------------------------------------------- */
+
+		/**
+		 * Filme em destaque, sorteado a cada visita. Como esta fila nao tem
+		 * setas, e a unica forma de o conteudo mudar.
+		 *
+		 * Guarda o anterior para nao repetir duas vezes seguidas: o acaso
+		 * sozinho repetia com mais frequencia do que parece.
+		 *
+		 * Sorteia-se de entre os populares, que e onde estao os titulos que
+		 * alguem reconhece; o resto do catalogo daria destaques obscuros.
+		 */
+		function escolherDestaque() {
+			let anterior = null;
+			try { anterior = localStorage.getItem('lumflix:destaque'); } catch (err) {}
+
+			const conhecidos = CATALOGO.filter((f) => POPULARES.has(f.id) && f.fundo);
+			const base = conhecidos.length ? conhecidos : CATALOGO;
+
+			const candidatos = base.filter((f) => f.titulo !== anterior);
+			const lista = candidatos.length ? candidatos : base;
+			const escolhido = lista[Math.floor(Math.random() * lista.length)];
+
+			try { localStorage.setItem('lumflix:destaque', escolhido.titulo); } catch (err) {}
+
+			return escolhido;
+		}
+
+		/* so depois de o catalogo chegar */
+		let destaque = null;
+
+		function pintarDestaque() {
+			$('heroTitle').textContent = destaque.titulo;
+			$('heroMeta').textContent = metaDe(destaque);
+
+			if (arteValida(destaque.fundo)) {
+				$('heroArte').src = destaque.fundo;
+				$('heroArte').hidden = false;
+				$('hero').classList.add('tem-arte');
+			}
+
+			pintarBotaoPlay($('heroPlay'), destaque);
+
+			/* a duracao e a idade chegam a parte: a linha reescreve-se */
+			detalheDe(destaque).then(() => {
+				$('heroMeta').textContent = metaDe(destaque);
+			});
+		}
+
+		/* ---- carrosseis -------------------------------------------------- */
+
+		/**
+		 * Cartaz da TMDB quando existe; quando nao existe fica o degrade do
+		 * tema com a inicial e o titulo, como estava antes de haver imagens.
+		 * As duas versoes ficam sempre no HTML e e a classe tem-arte que
+		 * decide qual se ve — assim, se a imagem nao carregar, basta tirar a
+		 * classe para a outra aparecer.
+		 */
+		function cartao(f, indice, posicao) {
+			const { c1, c2, c3 } = cores(f.titulo);
+			const arte = arteValida(f.cartaz);
+
+			return `
+				<button type="button" class="card" data-filme="${f.id}" style="--n:${posicao || 0}">
+					<div class="poster${arte ? ' tem-arte' : ''}" style="--c1:${c1};--c2:${c2};--c3:${c3}">
+						${arte ? `<img class="poster-img" src="${esc(f.cartaz)}" alt=""
+							loading="lazy"
+							onerror="this.closest('.poster').classList.remove('tem-arte'); this.remove();">` : ''}
+						${f.arquivo ? '<span class="poster-tocavel">▶ Watch</span>' : ''}
+						<span class="poster-mark" aria-hidden="true">${esc(f.titulo[0])}</span>
+						<span class="play" aria-hidden="true">▶</span>
+						<span class="poster-title">${esc(f.titulo)}</span>
+					</div>
+					<p class="card-meta">${esc(metaCartao(f))}</p>
+				</button>`;
+		}
+
+		/* chevron em SVG: a traco, alinha melhor e nao depende da fonte
+		   como os caracteres tipograficos que estavam aqui antes */
+		function seta(lado, rotulo) {
+			const d = lado === 'prev' ? 'M15 5 8 12l7 7' : 'M9 5l7 7-7 7';
+			return `
+				<button type="button" class="row-arrow ${lado}" aria-label="${rotulo}">
+					<span class="row-arrow-disc">
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="${d}" fill="none" stroke="currentColor" stroke-width="2"
+								stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</span>
+				</button>`;
+		}
+
+		/* A fila mostra no maximo POR_PAGINA cartazes; os restantes ficam de
+		   fora e entram quando se carrega na seta, trocando com os que la
+		   estao. Nao ha scroll: com 5 ou 6 filmes a fila cabia toda no ecra
+		   e as setas ficavam sem nada para fazer. */
+		/* Quantos cartazes cabem de uma vez. Cinco so cabem no computador:
+		   num telemovel de 390px davam uma fila de 824px e a pagina ganhava
+		   scroll lateral, que era o que ficava estranho no telemovel. */
+		function porPagina() {
+			const largura = window.innerWidth;
+			if (largura <= 560) return 2;
+			if (largura <= 860) return 3;
+			return 5;
+		}
+
+		let POR_PAGINA = porPagina();
+
+		/* tempo que os cartazes antigos levam a sair antes de os novos
+		   entrarem; tem de bater certo com o @keyframes saiCartaz */
+		const SAIDA_MS = 230;
+
+		/* [{ cat, itens: [{f, i}], inicio }] — inicio e o indice do primeiro
+		   cartaz visivel de cada fila */
+		let filas = [];
+
+		/* ---- filas ------------------------------------------------------- */
+
+		function filasDoCatalogo() {
+			const filas = [];
+
+			/* Os que se podem mesmo ver vem primeiro: e o que distingue
+			   esta fila de todas as outras, que so mostram cartazes. */
+			const tocaveis = CATALOGO.filter((f) => f.arquivo).map((f) => ({ f }));
+			if (tocaveis.length) {
+				filas.push({ cat: 'Watch now', itens: tocaveis, inicio: 0 });
+			}
+
+			/* "Popular now" nao e um genero: e a lista que o TMDB devolve
+			   como mais vista, por isso monta-se a parte */
+			const populares = CATALOGO.filter((f) => POPULARES.has(f.id)).map((f) => ({ f }));
+			if (populares.length) {
+				filas.push({ cat: 'Popular now', itens: populares, inicio: 0 });
+			}
+
+			/* Um titulo entra na fila de cada genero que tem: o mesmo filme
+			   e de acao e de aventura e aparece nas duas, como na Netflix.
+			   Antes cada titulo tinha um genero so e vivia numa fila. */
+			const porTema = new Map();
+			CATALOGO.forEach((f) => {
+				(f.categorias || []).forEach((cat) => {
+					if (!porTema.has(cat)) porTema.set(cat, []);
+					porTema.get(cat).push({ f });
+				});
+			});
+
+			const posicao = (cat) => {
+				const n = ORDEM_TEMAS.indexOf(cat);
+				return n === -1 ? ORDEM_TEMAS.length : n;
+			};
+
+			[...porTema.keys()]
+				.sort((a, b) => posicao(a) - posicao(b)
+					|| porTema.get(b).length - porTema.get(a).length)
+				.forEach((cat) => {
+					const itens = porTema.get(cat);
+					if (itens.length < MINIMO_FILA) return;
+					filas.push({ cat, itens, inicio: 0 });
+				});
+
+			/* fila do destaque, montada a partir do sorteio e nao do
+			   catalogo, para nunca ficar dessincronizada do topo */
+			if (destaque) {
+				filas.unshift({ cat: 'Featured', itens: [{ f: destaque }], inicio: 0 });
+			}
+
+			return filas;
+		}
+
+		/**
+		 * Numa procura nao se mostram as filas dos generos: o mesmo titulo
+		 * apareceria repetido em varias e nao se via o que se procurava.
+		 * Fica uma fila so — primeiro o que ja esta carregado, que aparece
+		 * sem esperar, e a seguir o que o TMDB devolveu.
+		 */
+		function filasDaProcura(termo) {
+			const daPagina = CATALOGO.filter((f) => f.titulo.toLowerCase().includes(termo));
+			const ja = new Set(daPagina.map((f) => f.id));
+
+			/* so os resultados que sao mesmo deste termo */
+			const vindos = ENCONTRADOS.termo === termo ? ENCONTRADOS.itens : [];
+			const doTmdb = vindos.filter((f) => !ja.has(f.id));
+
+			const itens = [...daPagina, ...doTmdb].map((f) => ({ f }));
+
+			return itens.length
+				? [{ cat: `Search results (${itens.length})`, itens, inicio: 0 }]
+				: [];
+		}
+
+		function desenhar(filtro) {
+			const termo = (filtro || '').trim().toLowerCase();
+
+			filas = termo ? filasDaProcura(termo) : filasDoCatalogo();
+
+			if (!filas.length) {
+				/* ainda a perguntar ao TMDB, ou nao ha mesmo nada */
+				$('rows').innerHTML = aProcurar
+					? '<p class="row-empty">Searching&hellip;</p>'
+					: `<p class="row-empty">Nothing found for &ldquo;${esc(filtro)}&rdquo;.</p>`;
+				return;
+			}
+
+			$('rows').innerHTML = filas.map((fila, idx) => `
+				<section class="row" data-fila="${idx}">
+					<div class="row-head">
+						<h2>${esc(fila.cat)}</h2>
+					</div>
+					<div class="row-viewport">
+						${seta('prev', 'Previous')}
+						<div class="row-track"></div>
+						${seta('next', 'Next')}
+					</div>
+				</section>`).join('');
+
+			filas.forEach((_, idx) => pintarFila(idx));
+		}
+
+		function pintarFila(idx, sentido) {
+			const fila = filas[idx];
+			const row = $('rows').querySelector(`.row[data-fila="${idx}"]`);
+			if (!row) return;
+
+			const track = row.querySelector('.row-track');
+			const total = fila.itens.length;
+
+			/* janela circular: ao passar do ultimo volta ao primeiro, por
+			   isso a fila nunca tem fim nem principio */
+			const janela = [];
+			for (let n = 0; n < Math.min(POR_PAGINA, total); n++) {
+				janela.push(fila.itens[(fila.inicio + n) % total]);
+			}
+
+			/* o sentido faz os cartazes entrarem pelo lado de onde vieram */
+			track.dataset.sentido = sentido || 'next';
+			track.innerHTML = janela.map(({ f, i }, n) => cartao(f, i, n)).join('');
+
+			/* so se travam as setas quando nao ha nada escondido para rodar */
+			const roda = total > POR_PAGINA;
+			row.querySelector('.prev').disabled = !roda;
+			row.querySelector('.next').disabled = !roda;
+		}
+
+		function mover(idx, direccao) {
+			const fila = filas[idx];
+			const total = fila.itens.length;
+
+			if (total <= POR_PAGINA) return;
+			/* trava cliques seguidos: sem isto, carregar depressa cortava a
+			   animacao a meio e deixava cartazes a meio caminho */
+			if (fila.ocupada) return;
+
+			/* O passo nunca passa o numero de cartazes escondidos. Com 6
+			   filmes e janela de 5 so ha 1 escondido, logo anda 1 de cada
+			   vez: entra o novo, sai o mais antigo. Saltar 5 de uma vez
+			   faria reaparecer logo quase os mesmos. */
+			const passo = Math.max(1, Math.min(POR_PAGINA, total - POR_PAGINA));
+
+			const sentido = direccao > 0 ? 'next' : 'prev';
+			const row = $('rows').querySelector(`.row[data-fila="${idx}"]`);
+			const track = row && row.querySelector('.row-track');
+
+			if (!track) return;
+
+			/* Duas fases: os que estao saem primeiro, so depois entram os
+			   novos. Antes o conteudo era trocado de uma vez e via-se um
+			   corte seco no meio da animacao de entrada. */
+			fila.ocupada = true;
+			track.dataset.sentido = sentido;
+			track.classList.add('a-sair');
+
+			setTimeout(() => {
+				fila.inicio = ((fila.inicio + direccao * passo) % total + total) % total;
+				track.classList.remove('a-sair');
+				pintarFila(idx, sentido);
+				fila.ocupada = false;
+			}, SAIDA_MS);
+		}
+
+		/* Arranque. Nada se pode desenhar antes de o catalogo chegar, por
+		   isso o destaque e as filas ficam a espera do pedido. */
+		(async () => {
+			try {
+				await carregarCatalogo();
+			} catch (err) {
+				$('rows').innerHTML =
+					'<p class="row-empty">The catalogue is not answering right now. '
+					+ 'Refresh the page in a moment.</p>';
+				return;
+			}
+
+			destaque = escolherDestaque();
+			pintarDestaque();
+			desenhar($('search').value);
+		})();
+
+		/* ao rodar o telemovel ou redimensionar a janela, o numero de
+		   cartazes por pagina muda: e preciso redesenhar as filas */
+		window.addEventListener('resize', () => {
+			const novo = porPagina();
+			if (novo === POR_PAGINA) return;
+
+			POR_PAGINA = novo;
+			if (CATALOGO.length) desenhar($('search').value);
+		});
+
+		/* ---- interacao --------------------------------------------------- */
+
+		/* ---- pesquisa ---------------------------------------------------- */
+
+		/**
+		 * A caixa procura em dois sitios. Primeiro no que ja esta carregado,
+		 * que responde sem esperar; depois pergunta ao TMDB, e e isso que
+		 * faz chegar aos titulos que o catalogo nao trouxe — um classico
+		 * como o Casablanca nunca aparece nas listas do que e popular.
+		 */
+		/* Os resultados andam com o termo a que pertencem. Antes eram uma
+		   lista solta, limpa a cada tecla, e bastava esquecer essa limpeza
+		   num sitio para a fila mostrar os resultados da palavra anterior. */
+		let ENCONTRADOS = { termo: '', itens: [] };
+		let termoAtual = '';
+		let aProcurar = false;
+		let esperaDaBusca = null;
+
+		$('search').addEventListener('input', (ev) => {
+			const escrito = ev.target.value;
+			const termo = escrito.trim();
+
+			termoAtual = termo;
+			clearTimeout(esperaDaBusca);
+			aProcurar = termo.length >= 2;
+
+			if (CATALOGO.length) desenhar(escrito);
+
+			if (!aProcurar) return;
+
+			/* Uma pausa antes de perguntar ao servidor: sem ela ia um pedido
+			   por cada letra escrita, e o ultimo (o unico que interessa)
+			   podia chegar antes dos anteriores. */
+			esperaDaBusca = setTimeout(() => procurarNoTmdb(termo), 320);
+		});
+
+		async function procurarNoTmdb(termo) {
+			let res;
+
+			try {
+				const resp = await fetch(
+					`${TMDB}?action=busca&tipo=${TIPO}&q=${encodeURIComponent(termo)}`, {
+						headers: { 'Accept': 'application/json' },
+						credentials: 'same-origin',
+					});
+				res = await resp.json();
+			} catch (err) {
+				aProcurar = false;
+				desenhar($('search').value);
+				return;
+			}
+
+			/* entre o pedido e a resposta o que esta escrito pode ter mudado */
+			if (termo !== termoAtual) return;
+
+			aProcurar = false;
+
+			if (res.status !== 'ok') {
+				desenhar($('search').value);
+				return;
+			}
+
+			ENCONTRADOS = { termo: termo.toLowerCase(), itens: res.itens || [] };
+			indexar(ENCONTRADOS.itens);
+			desenhar($('search').value);
+		}
+
+		/* Uma so escuta para a pagina toda: as filas e os cartoes sao
+		   redesenhados a cada pesquisa e a cada troca de pagina, e
+		   listeners por elemento perdiam-se nesse redesenho. */
+		document.addEventListener('click', (ev) => {
+			const botao = ev.target.closest('.row-arrow');
+			if (botao) {
+				const row = botao.closest('.row');
+				/* sentido invertido de proposito: a seta da direita traz os
+				   cartazes anteriores e a da esquerda os seguintes */
+				mover(Number(row.dataset.fila), botao.classList.contains('next') ? -1 : 1);
+				return;
+			}
+
+			const temporada = ev.target.closest('.season');
+			if (temporada) {
+				/* a pagina dos episodios nao tem o catalogo: leva tudo o que
+				   precisa de mostrar no cabecalho pelo endereco */
+				const f = fichaActual;
+				if (!f) return;
+
+				const destino = new URL('../series/series_temporada.html/temporada.html', window.location.href);
+				destino.searchParams.set('serie', f.titulo);
+				destino.searchParams.set('t', temporada.dataset.temporada);
+				destino.searchParams.set('de', $('seasonsTrack').querySelectorAll('.season').length);
+				destino.searchParams.set('ano', f.ano || '');
+				destino.searchParams.set('idade', f.idade || '');
+				destino.searchParams.set('cat', (f.categorias || []).join(', '));
+				destino.searchParams.set('sin', f.sinopse || '');
+				if (arteValida(f.cartaz)) destino.searchParams.set('cartaz', f.cartaz);
+				window.location.href = destino.href;
+				return;
+			}
+
+			const card = ev.target.closest('.card[data-filme]');
+			if (card) {
+				const f = PORID.get(Number(card.dataset.filme));
+				if (f) abrirFicha(f);
+			}
+		});
+
+		/* ---- toque ---------------------------------------------------- */
+
+		/* Arrastar para o lado muda de pagina. Num ecra tactil o :hover
+		   nunca acontece, por isso sem isto (e sem a regra hover:none no
+		   CSS) nao havia forma nenhuma de percorrer as filas. */
+		let toque = null;
+
+		document.addEventListener('touchstart', (ev) => {
+			const alvo = ev.target.closest && ev.target.closest('.row-track');
+			if (!alvo) return;
+
+			const row = alvo.closest('.row');
+			toque = {
+				x: ev.touches[0].clientX,
+				y: ev.touches[0].clientY,
+				fila: row ? Number(row.dataset.fila) : null,
+			};
+		}, { passive: true });
+
+		document.addEventListener('touchend', (ev) => {
+			if (!toque || toque.fila === null) return;
+
+			const dx = ev.changedTouches[0].clientX - toque.x;
+			const dy = ev.changedTouches[0].clientY - toque.y;
+			const fila = toque.fila;
+			toque = null;
+
+			/* so conta se for claramente horizontal: de outro modo roubava
+			   o scroll vertical da pagina */
+			if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+			/* sentido invertido, a par das setas */
+			mover(fila, dx < 0 ? 1 : -1);
+		}, { passive: true });
+
+
+
+		/* ---- a minha lista ------------------------------------------------ */
+
+		/**
+		 * A lista vive no servidor, ligada a conta, e nao no browser: assim
+		 * acompanha o utilizador em qualquer dispositivo.
+		 *
+		 * Carrega-se uma vez ao abrir a pagina; o token vem na mesma
+		 * resposta, para nao ser preciso um pedido so para o ir buscar.
+		 */
+		const LISTA_API = '../lista/lista.php';
+		let listaToken = '';
+		let listaTitulos = new Set();
+
+		async function chamarLista(action, campos) {
+			const escrita = campos !== undefined;
+			const url = escrita ? LISTA_API : `${LISTA_API}?action=${encodeURIComponent(action)}`;
+			const opcoes = {
+				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			};
+
+			if (escrita) {
+				const corpo = new FormData();
+				corpo.append('action', action);
+				corpo.append('token', listaToken);
+				Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+				opcoes.method = 'POST';
+				opcoes.body = corpo;
+			}
+
+			const resp = await fetch(url, opcoes);
+			return resp.json();
+		}
+
+		function guardarTitulos(itens) {
+			listaTitulos = new Set((itens || []).map((x) => x.titulo));
+			pintarBotaoLista();
+		}
+
+		function pintarBotaoLista() {
+			if (!fichaActual) return;
+
+			const dentro = listaTitulos.has(fichaActual.titulo);
+			$('sheetLista').textContent = dentro ? '✓ In my list' : '+ My list';
+			$('sheetLista').classList.toggle('na-lista', dentro);
+		}
+
+		(async () => {
+			try {
+				const res = await chamarLista('listar');
+				if (res.status === 'ok') {
+					listaToken = res.token;
+					guardarTitulos(res.itens);
+				}
+			} catch (err) {
+				/* sem servidor o botao fica inerte, mas a pagina abre */
+			}
+		})();
+
+		$('sheetLista').addEventListener('click', async () => {
+			const f = fichaActual;
+			if (!f || !listaToken) return;
+
+			const dentro = listaTitulos.has(f.titulo);
+			$('sheetLista').disabled = true;
+
+			let res;
+			try {
+				res = await chamarLista(dentro ? 'tirar' : 'juntar', {
+					titulo: f.titulo,
+					categoria: (f.categorias || []).join(', '),
+					ano: f.ano || '',
+					duracao: f.duracao || '',
+					idade: f.idade || '',
+					sinopse: f.sinopse || '',
+					/* o cartaz vai com o resto, para a pagina da lista
+					   mostrar a mesma arte e nao um degrade diferente */
+					cartaz: arteValida(f.cartaz) ? f.cartaz : '',
+				});
+			} catch (err) {
+				$('sheetLista').disabled = false;
+				return;
+			}
+
+			if (res.status === 'ok') guardarTitulos(res.itens);
+			$('sheetLista').disabled = false;
+		});
+
+		/* ---- ficha ------------------------------------------------------- */
+
+		/* o que esta aberto na ficha; e daqui que sai o endereco da
+		   pagina das temporadas */
+		let fichaActual = null;
+
+		function abrirFicha(f) {
+			fichaActual = f;
+			const { c1, c2, c3 } = cores(f.titulo);
+
+			$('sheetTitle').textContent = f.titulo;
+			$('sheetMeta').textContent = linhaFicha(f);
+			$('sheetSynopsis').textContent = f.sinopse;
+			$('sheetPoster').style.setProperty('--c1', c1);
+			$('sheetPoster').style.setProperty('--c2', c2);
+			$('sheetPoster').style.setProperty('--c3', c3);
+			$('sheetPoster').querySelector('span').textContent = f.titulo[0];
+
+			const arte = arteValida(f.cartaz);
+			$('sheetPosterImg').hidden = !arte;
+			$('sheetPoster').classList.toggle('tem-arte', arte);
+			if (arte) $('sheetPosterImg').src = f.cartaz;
+
+			pintarTemporadas(f);
+			pintarBotaoLista();
+			pintarBotaoPlay($('sheetPlay'), f);
+			$('sheet').hidden = false;
+
+			/* A duracao, a idade e o numero de temporadas sao um pedido a
+			   parte. Quando chegam, reescreve-se o que depende deles — mas
+			   so se a ficha aberta ainda for esta: entre o pedido e a
+			   resposta o utilizador pode ter aberto outra. */
+			detalheDe(f).then(() => {
+				if (fichaActual !== f) return;
+				$('sheetMeta').textContent = linhaFicha(f);
+				pintarTemporadas(f);
+			});
+		}
+
+		/**
+		 * Faixa de temporadas no fundo da ficha. O numero vem do detalhe da
+		 * TMDB e so as series o tem, por isso o mesmo codigo serve as duas
+		 * paginas: nos filmes a faixa nem aparece.
+		 */
+		function pintarTemporadas(f) {
+			const caixa = $('sheetSeasons');
+			const total = Number(f.temporadas || 0);
+
+			if (!total) {
+				caixa.hidden = true;
+				return;
+			}
+			$('seasonsTrack').innerHTML = Array.from({ length: total }, (_, n) => `
+				<button type="button" class="season" data-temporada="${n + 1}"
+					aria-pressed="${n === 0}">${n + 1}</button>`).join('');
+
+			caixa.hidden = false;
+		}
+
+		function fecharFicha() {
+			$('sheet').hidden = true;
+		}
+
+		$('sheetClose').addEventListener('click', fecharFicha);
+		$('heroInfo').addEventListener('click', () => abrirFicha(destaque));
+
+		/**
+		 * O Play tem dois destinos.
+		 *
+		 * Ha filme para ver? Vai para o leitor, e e o leitor que trata de
+		 * registar e de guardar o progresso a serio. Nao ha? Fica o que
+		 * havia antes: marca como comecado e mostra a lista do que ficou a
+		 * meio — o unico "tocar" que o site sabia fazer.
+		 */
+		function reproduzir(f) {
+			if (!f || !f.arquivo) return;
+
+			window.location.href =
+				`../reproduzir/reproduzir.html?arquivo=${encodeURIComponent(f.arquivo)}`;
+		}
+
+		/**
+		 * O botao Play diz a verdade sobre cada titulo.
+		 *
+		 * Do catalogo inteiro, so os classicos do Archive tem ficheiro. Nos
+		 * outros o botao mandava o filme para o "Continue watching" e
+		 * levava a essa pagina — sem nada ter sido visto, nem haver nada
+		 * para ver. A lista enchia-se de filmes que ninguem tinha visto.
+		 */
+		function pintarBotaoPlay(botao, f) {
+			const ha = Boolean(f && f.arquivo);
+
+			botao.disabled = !ha;
+			botao.textContent = ha ? '▶ Play' : 'Not available to stream';
+			botao.title = ha ? '' : 'On LumFlix only the Classics row has a file to play.';
+		}
+
+		$('heroPlay').addEventListener('click', () => reproduzir(destaque));
+		$('sheetPlay').addEventListener('click', () => reproduzir(fichaActual));
+
+		/* fechar clicando fora do cartao, mas nao dentro dele */
+		$('sheet').addEventListener('click', (ev) => {
+			if (ev.target === $('sheet')) fecharFicha();
+		});
+
+		document.addEventListener('keydown', (ev) => {
+			if (ev.key === 'Escape') fecharFicha();
+		});
+
+		$('logout').addEventListener('click', async () => {
+			const body = new FormData();
+			body.append('action', 'logout');
+			try {
+				await fetch(SESSAO, { method: 'POST', credentials: 'same-origin', body });
+			} catch (err) { /* sai na mesma */ }
+			window.location.href = LOGIN;
+		});
+
+		/* barra de topo ganha fundo assim que se sai do topo */
+		const aoRolar = () => $('topbar').classList.toggle('is-stuck', window.scrollY > 10);
+		window.addEventListener('scroll', aoRolar, { passive: true });
+		aoRolar();
+	</script>
+</body>
+</html>

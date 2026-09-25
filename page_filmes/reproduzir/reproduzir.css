@@ -1,0 +1,210 @@
+/**
+ * [ESTILO-LEITOR] reproduzir.css
+ * So o que e proprio da pagina de reproducao. A paleta vem do
+ * ../../authentication_page/Shared/style.css.
+ *
+ * Esta pagina e escura de proposito, mais do que o resto do site: o que
+ * interessa e o filme, e qualquer coisa clara a volta do video ve-se no
+ * canto do olho durante duas horas.
+ */
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #050402;
+	color: var(--text);
+	font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ---- barra de topo ---------------------------------------------------- */
+
+.leitor-topo {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 16px 22px;
+	border-bottom: 1px solid rgba(192, 138, 30, 0.16);
+}
+
+.voltar {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	border: 1px solid rgba(192, 138, 30, 0.4);
+	border-radius: 999px;
+	color: var(--neon);
+	font-size: 0.85rem;
+	font-weight: 600;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: border-color 200ms ease, background 200ms ease;
+}
+
+.voltar:hover,
+.voltar:focus-visible {
+	border-color: var(--neon);
+	background: rgba(224, 179, 82, 0.1);
+}
+
+.leitor-titulo {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.leitor-titulo h1 {
+	margin: 0;
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	/* um titulo comprido nao pode empurrar o botao de voltar para fora */
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.leitor-titulo .meta {
+	margin: 2px 0 0;
+	color: var(--muted);
+	font-size: 0.78rem;
+	letter-spacing: 0.02em;
+}
+
+/* ---- video ------------------------------------------------------------- */
+
+.palco {
+	flex: 1 1 auto;
+	display: grid;
+	place-items: center;
+	padding: 22px;
+	min-height: 0;
+}
+
+.moldura {
+	position: relative;
+	width: 100%;
+	max-width: 1280px;
+	aspect-ratio: 16 / 9;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #000;
+	box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
+}
+
+video {
+	display: block;
+	width: 100%;
+	height: 100%;
+	/* muitos destes filmes sao 4:3: o contain deixa as barras pretas em
+	   vez de cortar a imagem */
+	object-fit: contain;
+	background: #000;
+}
+
+/* ---- estados ----------------------------------------------------------- */
+
+/*
+ * A espera e a falha vivem por cima do video, no mesmo sitio. Sao duas
+ * caixas e nao uma so com o texto trocado, porque a falha tem um botao e
+ * a espera nao.
+ */
+.sobreposto {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	gap: 14px;
+	align-content: center;
+	padding: 30px;
+	text-align: center;
+	background: rgba(5, 4, 2, 0.92);
+}
+
+.sobreposto[hidden] {
+	display: none;
+}
+
+.sobreposto p {
+	margin: 0;
+	max-width: 44ch;
+	color: var(--muted);
+	font-size: 0.92rem;
+	line-height: 1.6;
+}
+
+.sobreposto strong {
+	display: block;
+	margin-bottom: 4px;
+	color: var(--text);
+	font-size: 1.05rem;
+}
+
+/* disco a rodar: o ficheiro vem do Archive e pode levar uns segundos a
+   arrancar, e sem isto a pagina parecia estar avariada */
+.disco {
+	width: 42px;
+	height: 42px;
+	border: 2px solid rgba(224, 179, 82, 0.25);
+	border-top-color: var(--neon);
+	border-radius: 50%;
+	animation: roda 900ms linear infinite;
+}
+
+@keyframes roda {
+	to { transform: rotate(360deg); }
+}
+
+/* ---- rodape ------------------------------------------------------------- */
+
+.leitor-rodape {
+	padding: 16px 22px 26px;
+	border-top: 1px solid rgba(192, 138, 30, 0.12);
+	color: var(--muted);
+	font-size: 0.78rem;
+	line-height: 1.6;
+}
+
+.leitor-rodape a {
+	color: var(--neon);
+}
+
+.leitor-rodape p {
+	margin: 0;
+	max-width: 70ch;
+}
+
+/* ---- responsivo ---------------------------------------------------------- */
+
+@media (max-width: 720px) {
+	.leitor-topo {
+		gap: 12px;
+		padding: 12px 14px;
+	}
+
+	.voltar {
+		padding: 7px 12px;
+		font-size: 0.8rem;
+	}
+
+	.palco {
+		/* sem folga lateral: o video aproveita a largura toda do ecra */
+		padding: 0;
+	}
+
+	.moldura {
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	.leitor-rodape {
+		padding: 14px 14px 22px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.disco {
+		animation-duration: 3s;
+	}
+}

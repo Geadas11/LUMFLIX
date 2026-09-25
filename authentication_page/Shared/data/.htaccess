@@ -1,0 +1,13 @@
+# Esta pasta tem as contas: palavras-passe cifradas, segredos de 2FA e
+# emails. Nada aqui deve poder ser descarregado pelo browser — so o PHP
+# do servidor e que le estes ficheiros.
+#
+# As duas formas estao aqui porque o Apache 2.4 usa a primeira e o 2.2 a
+# segunda, e o WAMP pode vir com qualquer uma.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>

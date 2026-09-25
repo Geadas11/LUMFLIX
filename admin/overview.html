@@ -1,0 +1,125 @@
+<!--
+	[PAGINA-ADMIN] overview.html
+	Visao geral: contagens no topo e a tabela completa de contas, com
+	filtro e pesquisa. So le — as decisoes fazem-se em admin_page.html.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Overview | LumFlix Admin</title>
+	<link rel="stylesheet" href="../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+	<div id="gate" class="gate hidden">
+		<h1>Restricted area</h1>
+		<p>The panel session expired or has not started. Sign in through the site login with the administrator credentials.</p>
+		<a class="button pill" href="../authentication_page/Login/auth.html">Go to sign in</a>
+	</div>
+
+	<div id="app" class="admin-shell hidden">
+		<header class="admin-top">
+			<h1>Overview</h1>
+			<p class="admin-who">Signed in as <strong id="whoami"></strong></p>
+		</header>
+
+		<nav class="admin-nav">
+			<a href="admin_page.html">Approvals</a>
+			<a href="overview.html" aria-current="page">Overview</a>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</nav>
+
+		<div id="notice" class="notice" role="status"></div>
+
+		<dl class="stat-grid" id="stats"></dl>
+
+		<section class="admin-section">
+			<h2>All accounts</h2>
+			
+			<div class="filters">
+				<input type="search" id="search" placeholder="Search accounts..." aria-label="Search accounts">
+				<select id="filter" aria-label="Filter by status">
+					<option value="">All statuses</option>
+					<option value="pending">Pending</option>
+					<option value="approved">Approved</option>
+					<option value="denied">Denied</option>
+				</select>
+			</div>
+
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Account</th>
+							<th>Status</th>
+							<th>2FA</th>
+							<th>Created</th>
+							<th>Decided</th>
+							<th>By</th>
+						</tr>
+					</thead>
+					<tbody id="allBody"></tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+
+	<script src="admin.js"></script>
+	<script>
+		const { $, esc, fmtDate, statusTag, boolTag } = Admin;
+
+		let all = [];
+
+		const STAT_CARDS = [
+			['total', 'Accounts'],
+			['pending', 'Pending'],
+			['approved', 'Approved'],
+			['denied', 'Denied'],
+			['with_2fa', 'With 2FA'],
+		];
+
+		function renderStats(stats) {
+			$('stats').innerHTML = STAT_CARDS.map(([key, label]) => `
+				<div class="stat${key === 'pending' && stats[key] > 0 ? ' is-pending' : ''}">
+					<dt>${esc(label)}</dt>
+					<dd>${esc(stats[key] ?? 0)}</dd>
+				</div>`).join('');
+		}
+
+		function renderTable() {
+			const term = $('search').value.trim().toLowerCase();
+			const state = $('filter').value;
+
+			const rows = all.filter((u) =>
+				(!state || u.status === state) &&
+				(!term || u.user.toLowerCase().includes(term)));
+
+			$('allBody').innerHTML = rows.length
+				? rows.map((u) => `
+					<tr>
+						<td class="user-cell">${esc(u.user)}</td>
+						<td>${statusTag(u.status)}</td>
+						<td>${boolTag(u.has_2fa, 'On', 'Off')}</td>
+						<td>${esc(fmtDate(u.created_at))}</td>
+						<td>${esc(fmtDate(u.reviewed_at))}</td>
+						<td>${esc(u.reviewed_by || '—')}</td>
+					</tr>`).join('')
+				: `<tr><td class="empty" colspan="6">No account matches that filter.</td></tr>`;
+		}
+
+		$('search').addEventListener('input', renderTable);
+		$('filter').addEventListener('change', renderTable);
+
+		Admin.wireLogout();
+
+		Admin.load().then((data) => {
+			if (!data.ok) return;
+			all = data.users;
+			renderStats(data.stats);
+			renderTable();
+		});
+	</script>
+</body>
+</html>

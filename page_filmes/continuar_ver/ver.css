@@ -1,0 +1,297 @@
+/**
+ * [ESTILO-CONTINUAR] ver.css
+ * So o que e proprio da pagina "continuar a ver". A barra de topo, a
+ * paleta e os botoes vem do ../catalogo.css e do style.css.
+ */
+
+.ver-shell {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 112px var(--gutter) 70px;
+}
+
+.ver-topo {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 20px;
+	flex-wrap: wrap;
+	margin-bottom: 28px;
+}
+
+.ver-topo h1 {
+	margin: 0 0 6px;
+	font-size: clamp(1.8rem, 4vw, 2.4rem);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.ver-topo .nota {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.92rem;
+}
+
+.ver-topo .button {
+	padding: 10px 22px;
+	font-size: 0.88rem;
+}
+
+/* ---- grelha ---------------------------------------------------------- */
+
+/* auto-fill com minmax: os cartoes reorganizam-se sozinhos, sem precisar
+   de um numero de colunas por cada tamanho de ecra */
+.ver-grelha {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 22px;
+}
+
+.visto {
+	border-radius: 12px;
+	overflow: hidden;
+	background: rgba(22, 17, 8, 0.6);
+	border: 1px solid rgba(192, 138, 30, 0.16);
+	transition: border-color 200ms ease, transform 240ms var(--curva);
+}
+
+.visto:hover {
+	border-color: rgba(224, 179, 82, 0.45);
+	transform: translateY(-4px);
+}
+
+/* ---- arte ------------------------------------------------------------ */
+
+/* deitada, ao contrario do cartaz do catalogo: o que ficou a meio le-se
+   melhor em formato de miniatura de video */
+.visto-arte {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	background:
+		radial-gradient(70% 80% at 22% 10%, var(--c3), transparent 66%),
+		radial-gradient(90% 90% at 88% 96%, rgba(0, 0, 0, 0.6), transparent 60%),
+		linear-gradient(150deg, var(--c1) 0%, var(--c2) 100%);
+}
+
+/* cartaz da TMDB, por baixo das camadas de textura */
+.visto-img {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	/* a imagem e mais alta do que a caixa: corta-se mais por baixo, que
+	   e onde costuma estar o menos importante */
+	object-position: center 28%;
+}
+
+.visto-arte.tem-arte .visto-marca {
+	display: none;
+}
+
+.visto-arte.tem-arte::before {
+	opacity: 0.24;
+}
+
+.visto-arte::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-image:
+		linear-gradient(118deg, transparent 34%, rgba(255, 244, 214, 0.16) 48%, transparent 60%),
+		var(--grao);
+	background-size: auto, 140px 140px;
+	opacity: 0.5;
+	mix-blend-mode: soft-light;
+}
+
+.visto-marca {
+	position: absolute;
+	/* acima da camada de textura, como estava antes de ela ganhar
+	   z-index para poder ficar por cima do cartaz */
+	z-index: 2;
+	top: -18px;
+	right: 6px;
+	font-size: 5.6rem;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.06em;
+	color: rgba(255, 255, 255, 0.1);
+	pointer-events: none;
+}
+
+.visto-play {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	z-index: 2;
+	width: 52px;
+	height: 52px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1.5px solid rgba(255, 248, 233, 0.9);
+	background: rgba(12, 8, 3, 0.55);
+	color: #fff8e9;
+	font-size: 1rem;
+	cursor: pointer;
+	transform: translate(-50%, -50%);
+	transition: transform 220ms var(--curva), background 200ms ease;
+}
+
+.visto:hover .visto-play {
+	transform: translate(-50%, -50%) scale(1.1);
+	background: rgba(224, 179, 82, 0.28);
+}
+
+.visto-tirar {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 2;
+	width: 28px;
+	height: 28px;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(10, 7, 4, 0.7);
+	color: var(--muted);
+	font-size: 1.1rem;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 200ms ease, color 200ms ease, background 200ms ease;
+}
+
+.visto:hover .visto-tirar,
+.visto-tirar:focus-visible {
+	opacity: 1;
+}
+
+.visto-tirar:hover {
+	color: #ffd5d8;
+	background: rgba(120, 30, 30, 0.8);
+}
+
+/* ---- barra de progresso ----------------------------------------------- */
+
+.barra {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	height: 4px;
+	background: rgba(0, 0, 0, 0.55);
+}
+
+.barra span {
+	display: block;
+	height: 100%;
+	background: linear-gradient(to right, var(--accent), var(--neon));
+	box-shadow: 0 0 10px rgba(224, 179, 82, 0.7);
+	transition: width 320ms var(--curva);
+}
+
+/* ---- texto ------------------------------------------------------------ */
+
+.visto-corpo {
+	padding: 14px 16px 16px;
+}
+
+.visto-corpo h3 {
+	margin: 0 0 4px;
+	font-size: 0.98rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.visto-meta {
+	margin: 0 0 6px;
+	color: var(--muted);
+	font-size: 0.8rem;
+}
+
+.visto-estado {
+	margin: 0;
+	color: var(--neon);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+/* ---- nada a meio ------------------------------------------------------- */
+
+.ver-vazio {
+	padding: 60px 30px;
+	border: 1px dashed rgba(192, 138, 30, 0.3);
+	border-radius: 16px;
+	text-align: center;
+	background: rgba(22, 17, 8, 0.4);
+}
+
+.ver-vazio[hidden] {
+	display: none;
+}
+
+.ver-vazio-marca {
+	width: 72px;
+	height: 72px;
+	margin: 0 auto 20px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid rgba(224, 179, 82, 0.35);
+	background: rgba(224, 179, 82, 0.08);
+	color: var(--neon);
+	font-size: 1.5rem;
+}
+
+.ver-vazio h2 {
+	margin: 0 0 8px;
+	font-size: 1.3rem;
+	font-weight: 800;
+}
+
+.ver-vazio p {
+	margin: 0 0 24px;
+	color: var(--muted);
+	font-size: 0.95rem;
+}
+
+.ver-vazio .hero-actions {
+	justify-content: center;
+}
+
+.ver-vazio .button {
+	text-decoration: none;
+}
+
+.ver-vazio .button:hover {
+	text-decoration: none;
+}
+
+/* ---- responsivo --------------------------------------------------------- */
+
+@media (max-width: 560px) {
+	.ver-shell {
+		/* a barra de topo tem duas linhas neste tamanho */
+		padding-top: 132px;
+	}
+
+	.ver-grelha {
+		grid-template-columns: 1fr;
+	}
+
+	.ver-topo .button {
+		width: 100%;
+		text-align: center;
+	}
+
+	.ver-vazio {
+		padding: 44px 20px;
+	}
+}

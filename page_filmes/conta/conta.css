@@ -1,0 +1,263 @@
+/**
+ * [ESTILO-CONTA] conta.css
+ * So o que e proprio da pagina da conta. A barra de topo, a paleta e os
+ * botoes vem do ../catalogo.css e do style.css da autenticacao.
+ */
+
+.conta-shell {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 112px var(--gutter) 70px;
+}
+
+.conta-shell h1 {
+	margin: 0 0 26px;
+	font-size: clamp(1.8rem, 4vw, 2.4rem);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+/* ---- avisos ---------------------------------------------------------- */
+
+.aviso {
+	display: none;
+	margin-bottom: 22px;
+	padding: 14px 18px;
+	border-radius: 12px;
+	border: 1px solid rgba(192, 138, 30, 0.35);
+	background: rgba(192, 138, 30, 0.12);
+	color: #f0e2c0;
+	font-size: 0.92rem;
+}
+
+.aviso.visivel {
+	display: block;
+}
+
+.aviso.mau {
+	border-color: rgba(248, 113, 113, 0.32);
+	background: rgba(248, 113, 113, 0.12);
+	color: #ffd5d8;
+}
+
+/* ---- paineis --------------------------------------------------------- */
+
+.painel {
+	margin-bottom: 20px;
+	padding: 26px;
+	border: 1px solid rgba(192, 138, 30, 0.18);
+	border-radius: 14px;
+	background:
+		radial-gradient(90% 130% at 0% 0%, rgba(192, 138, 30, 0.08), transparent 60%),
+		rgba(22, 17, 8, 0.6);
+}
+
+.painel h2 {
+	margin: 0 0 6px;
+	font-size: 1.1rem;
+	font-weight: 700;
+}
+
+.painel .nota {
+	margin: 0 0 20px;
+	color: var(--muted);
+	font-size: 0.9rem;
+	line-height: 1.55;
+}
+
+/* ---- perfil ---------------------------------------------------------- */
+
+.perfil {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+}
+
+.perfil-avatar {
+	flex: 0 0 auto;
+	width: 74px;
+	height: 74px;
+	display: grid;
+	place-items: center;
+	border-radius: 18px;
+	background: linear-gradient(145deg, #f3dfa6, var(--accent-dark));
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+	color: #1a1102;
+	font-size: 2rem;
+	font-weight: 800;
+}
+
+.perfil-dados {
+	min-width: 0;
+}
+
+.perfil-dados h2 {
+	margin: 0 0 12px;
+	font-size: 1.4rem;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+.factos {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 26px;
+	margin: 0;
+}
+
+.factos dt {
+	margin-bottom: 4px;
+	color: var(--muted);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.factos dd {
+	margin: 0;
+	font-size: 0.92rem;
+}
+
+/* ---- selos de estado -------------------------------------------------- */
+
+.selo {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 999px;
+	border: 1px solid currentColor;
+	font-size: 0.76rem;
+	font-weight: 700;
+}
+
+.selo.bom { color: #7fc99a; }
+.selo.espera { color: var(--neon); }
+.selo.mau { color: #e08585; }
+
+/* ---- formularios ------------------------------------------------------ */
+
+.form-conta {
+	display: grid;
+	gap: 16px;
+	max-width: 360px;
+}
+
+.campo {
+	display: grid;
+	gap: 7px;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+/* o style.css estiliza todos os input; aqui sao mais discretos */
+.campo input {
+	padding: 11px 14px;
+	border: 1px solid rgba(200, 168, 100, 0.22);
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.35);
+	color: var(--text);
+	font-size: 0.95rem;
+}
+
+.campo input:focus {
+	border-color: rgba(224, 179, 82, 0.7);
+	box-shadow: 0 0 0 3px rgba(192, 138, 30, 0.14);
+	transform: none;
+}
+
+.form-conta .button {
+	justify-self: start;
+	padding: 12px 28px;
+}
+
+/* desligar o 2FA tira protecao: o botao deixa de ser dourado */
+.button.perigo {
+	background: linear-gradient(145deg, #7a2b2b, #b04a4a);
+	color: #ffe9e9;
+	box-shadow: 0 0 14px rgba(176, 74, 74, 0.4), 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.button.perigo:hover {
+	box-shadow: 0 0 22px rgba(176, 74, 74, 0.6), 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- segredo do 2FA --------------------------------------------------- */
+
+.segredo {
+	margin-top: 22px;
+	padding: 20px;
+	border: 1px solid rgba(224, 179, 82, 0.35);
+	border-radius: 12px;
+	background: rgba(224, 179, 82, 0.08);
+	text-align: center;
+}
+
+.segredo[hidden] {
+	display: none;
+}
+
+.segredo strong {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 1rem;
+}
+
+.segredo p {
+	margin: 0 0 16px;
+	color: var(--muted);
+	font-size: 0.88rem;
+	line-height: 1.55;
+}
+
+.segredo code {
+	display: inline-block;
+	padding: 12px 18px;
+	border: 1px solid var(--field-border);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--text);
+	font-size: 1.05rem;
+	letter-spacing: 0.08em;
+}
+
+/* ---- responsivo -------------------------------------------------------- */
+
+@media (max-width: 560px) {
+	.conta-shell {
+		/* a barra de topo tem duas linhas neste tamanho */
+		padding-top: 132px;
+	}
+
+	.perfil {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 16px;
+	}
+
+	.form-conta {
+		max-width: none;
+	}
+
+	.form-conta .button {
+		justify-self: stretch;
+		text-align: center;
+	}
+}
+
+/* dois botoes lado a lado no fim de um formulario */
+.accoes {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.accoes .button {
+	justify-self: auto;
+}
+
+@media (max-width: 560px) {
+	.accoes .button {
+		flex: 1 1 auto;
+		text-align: center;
+	}
+}

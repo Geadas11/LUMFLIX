@@ -1,0 +1,162 @@
+<!--
+	[PAGINA-LOGIN] auth.html
+	Dois formulários: password (passo 1) e código 2FA (passo 2, só
+	aparece se a conta tiver 2FA ativo). Comunica com auth.php via fetch().
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Sign in | LumFlix</title>
+	<link rel="stylesheet" href="../Shared/style.css">
+	<script src="../Shared/nav.js"></script>
+</head>
+<body>
+	<main class="shell split-shell">
+		<section class="split-card art-right" aria-labelledby="login-title">
+			<div class="form-panel">
+				<h1 id="login-title">Login</h1>
+
+				<div id="errorBox" class="alert" role="alert"></div>
+
+				<form id="loginForm" action="auth.php" method="post" autocomplete="on">
+					<label class="field">
+						<span class="field-input">
+							<input type="text" name="user" id="user" placeholder="Username" autocomplete="username" required>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+						</span>
+					</label>
+					<label class="field">
+						<span class="field-input">
+							<input type="password" name="pass" id="pass" placeholder="Password" autocomplete="current-password" required>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+						</span>
+					</label>
+					<button class="button pill" type="submit">Login</button>
+				</form>
+
+				<form id="otpForm" action="auth.php" method="post" autocomplete="one-time-code" class="hidden">
+					<div class="info">
+						<div><strong>Step 2: verification code</strong></div>
+						<div id="setupText"></div>
+					</div>
+					<input type="hidden" name="otp_step" value="1">
+					<label class="field">
+						Código 2FA
+						<span class="field-input">
+							<input type="text" name="otp_code" id="otp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+						</span>
+					</label>
+					<button class="button pill" type="submit">Verify code</button>
+				</form>
+
+				<div class="form-footer">
+					<p>Dont have an account?</p>
+					<p><a href="../Register/register.html">Register here</a></p>
+				</div>
+			</div>
+
+			<div class="glow-panel" aria-hidden="true">
+				<div class="glow-text">
+					<strong>WELCOME</strong>
+					<strong>BACK!</strong>
+				</div>
+			</div>
+
+			<div class="sweep-bar" aria-hidden="true"><div class="sweep-face"></div></div>
+		</section>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const params = new URLSearchParams(window.location.search);
+
+		const el = {
+			error: $('errorBox'),
+			loginForm: $('loginForm'),
+			otpForm: $('otpForm'),
+			setupText: $('setupText'),
+			title: $('login-title'),
+			user: $('user'),
+		};
+
+		// Mensagens de erro simples, indexadas por código
+		const ERROR_MESSAGES = {
+			1: 'Invalid credentials. Check the username and password.',
+			pending_approval: 'Your account is still waiting for an administrator to approve it.',
+			account_denied: 'Access to this account was denied. Talk to an administrator.',
+			2: 'Invalid 2FA code. Check the code in your authenticator app.',
+			default: 'Something went wrong. Try again.',
+		};
+
+		function showError(code) {
+			el.error.textContent = ERROR_MESSAGES[code] || ERROR_MESSAGES.default;
+			el.error.classList.add('show');
+		}
+
+		function goToStep2(user) {
+			el.loginForm.classList.add('hidden');
+			el.otpForm.classList.remove('hidden');
+			el.setupText.textContent = `Confirma o código para ${user || 'o utilizador'}.`;
+			if (user) el.user.value = user;
+			el.error.classList.remove('show');
+		}
+
+		// Estado inicial a partir da URL (?error=1, ?step=2, ?user=...)
+		if (params.get('error')) showError(params.get('error'));
+		if (params.get('step') === '2') {
+			el.title.textContent = 'Verify 2FA';
+			goToStep2(params.get('user'));
+		}
+		if (params.get('user')) el.user.value = params.get('user');
+
+		// Submissão via fetch, comum aos dois formulários
+		async function submitForm(form, onSuccess) {
+			el.error.classList.remove('show');
+
+			let res;
+			try {
+				const resp = await fetch(form.action, {
+					method: 'POST',
+					headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+					credentials: 'same-origin',
+					body: new FormData(form),
+				});
+				res = await resp.json();
+			} catch (err) {
+				showError('default');
+				return;
+			}
+
+			if (res.status === 'error') {
+				showError(res.error);
+				return;
+			}
+
+			onSuccess(res);
+		}
+
+		el.loginForm.addEventListener('submit', (ev) => {
+			ev.preventDefault();
+			submitForm(el.loginForm, (res) => {
+				if (res.status === 'ok' && res.authenticated) {
+					window.location.href = res.redirect;
+					return;
+				}
+				if (res.status === 'ok' && res.step == 2) goToStep2(res.user);
+			});
+		});
+
+		el.otpForm.addEventListener('submit', (ev) => {
+			ev.preventDefault();
+			submitForm(el.otpForm, (res) => {
+				if (res.status === 'ok' && res.authenticated) {
+					window.location.href = res.redirect;
+				}
+			});
+		});
+	</script>
+</body>
+</html>

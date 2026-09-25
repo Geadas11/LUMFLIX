@@ -1,0 +1,976 @@
+/**
+ * [ESTILO-BASE] style.css
+ * Visual partilhado por todas as páginas (login, registo, 2fa):
+ * cores, cartão central, inputs, botões, animações.
+ */
+
+		:root {
+			color-scheme: dark;
+			--bg: #0a0704;
+			--panel: rgba(22, 17, 8, 0.82);
+			--panel-border: rgba(192, 138, 30, 0.18);
+			--text: #f5e9d2;
+			--muted: #9b8a63;
+			--accent: #c08a1e;
+			--neon: #e0b352;
+			--accent-dark: #6b4a0c;
+			--field: rgba(255, 255, 255, 0.05);
+			--field-border: rgba(200, 168, 100, 0.22);
+			--field-line: #ffffff;
+			--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			font-family: Arial, Helvetica, sans-serif;
+			color: var(--text);
+			background:
+				radial-gradient(circle at top left, rgba(192, 138, 30, 0.28), transparent 30%),
+				radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.06), transparent 24%),
+				linear-gradient(135deg, #0a0704 0%, #17110a 46%, #0b0805 100%);
+			overflow-x: hidden;
+		}
+
+		body::before {
+			content: "";
+			position: fixed;
+			inset: 0;
+			background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+			background-size: 56px 56px;
+			mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 95%);
+			pointer-events: none;
+		}
+
+		.shell {
+			min-height: 100vh;
+			display: grid;
+			/* minmax(0, 1fr) e nao "auto": sem isto a coluna dimensiona-se ao
+			   conteudo e o width:min(100%,...) do cartao resolve contra uma
+			   largura maior que o ecra, transbordando no telemovel. */
+			grid-template-columns: minmax(0, 1fr);
+			place-items: center;
+			padding: 32px 20px;
+			position: relative;
+			z-index: 1;
+		}
+
+		.card {
+			width: min(100%, 440px);
+			padding: 34px;
+			background: var(--panel);
+			border: 1px solid var(--panel-border);
+			border-radius: 24px;
+			box-shadow: var(--shadow);
+			backdrop-filter: blur(18px);
+			animation: floatIn 700ms ease-out both;
+		}
+
+		.brand {
+			display: inline-flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 22px;
+		}
+
+		.brand-mark {
+			width: 46px;
+			height: 46px;
+			border-radius: 14px;
+			display: grid;
+			place-items: center;
+			background: linear-gradient(145deg, #e0b352, var(--accent-dark));
+			color: #201503;
+			font-weight: 800;
+			font-size: 1.2rem;
+			box-shadow: 0 12px 30px rgba(192, 138, 30, 0.4);
+		}
+
+		.brand-text {
+			display: flex;
+			flex-direction: column;
+			line-height: 1.1;
+		}
+
+		.brand-text strong {
+			font-size: 1.05rem;
+			letter-spacing: 0.02em;
+		}
+
+		.brand-text span {
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+
+		h1 {
+			margin: 0 0 10px;
+			font-size: clamp(2rem, 4vw, 2.6rem);
+			line-height: 1.05;
+		}
+
+		.subtitle {
+			margin: 0 0 22px;
+			color: var(--muted);
+			font-size: 1rem;
+			line-height: 1.5;
+		}
+
+		.alert {
+			display: none;
+			margin-bottom: 18px;
+			padding: 14px 16px;
+			border-radius: 14px;
+			border: 1px solid rgba(248, 113, 113, 0.32);
+			background: rgba(248, 113, 113, 0.12);
+			color: #ffd5d8;
+			font-size: 0.95rem;
+		}
+
+		.alert.show {
+			display: block;
+		}
+
+		.success {
+			display: none;
+			margin-top: 18px;
+			padding: 18px;
+			border-radius: 16px;
+			border: 1px solid rgba(192, 138, 30, 0.35);
+			background: rgba(192, 138, 30, 0.12);
+			color: #f0e2c0;
+			text-align: center;
+		}
+
+		.success.show {
+			display: grid;
+			gap: 14px;
+		}
+
+		.hidden {
+			display: none !important;
+		}
+
+		.success strong {
+			font-size: 1.05rem;
+		}
+
+		.success p {
+			margin: 0;
+			color: #d8c088;
+			line-height: 1.5;
+		}
+
+		/* A pergunta fica justificada; o resto do bloco herda o centrado.
+		   O :not e para nao apanhar a caixa do codigo 2FA, que e um <p>
+		   de uma linha so e ficaria encostado a esquerda. */
+		.success p:not(.secret-display) {
+			text-align: justify;
+		}
+
+		.success .button {
+			display: inline-flex;
+			justify-content: center;
+			align-items: center;
+			width: 100%;
+			text-decoration: none;
+		}
+
+		form {
+			display: grid;
+			gap: 16px;
+		}
+
+		label {
+			display: grid;
+			gap: 8px;
+			font-size: 0.95rem;
+			color: #e9e9eb;
+		}
+
+		input {
+			width: 100%;
+			padding: 15px 16px;
+			border: 1px solid var(--field-border);
+			border-radius: 14px;
+			background: var(--field);
+			color: var(--text);
+			font-size: 1rem;
+			outline: none;
+			transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+		}
+
+		input::placeholder {
+			color: #877d68;
+		}
+
+		input:focus {
+			border-color: rgba(192, 138, 30, 0.7);
+			box-shadow: 0 0 0 4px rgba(192, 138, 30, 0.16);
+			transform: translateY(-1px);
+		}
+
+		.row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			flex-wrap: wrap;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.remember {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.remember input {
+			width: 18px;
+			height: 18px;
+			margin: 0;
+			accent-color: var(--accent);
+			transform: none;
+			box-shadow: none;
+		}
+
+		a {
+			color: #f0f0f0;
+			text-decoration: none;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		.button {
+			border: 0;
+			border-radius: 14px;
+			padding: 15px 16px;
+			background: linear-gradient(145deg, #6b4a0c, var(--accent));
+			color: #201503;
+			font-size: 1rem;
+			font-weight: 700;
+			cursor: pointer;
+			box-shadow: 0 18px 34px rgba(192, 138, 30, 0.32);
+			transition: transform 160ms ease, filter 160ms ease;
+		}
+
+		.button:hover {
+			transform: translateY(-1px);
+			filter: brightness(1.05);
+		}
+
+		.button:active {
+			transform: translateY(0);
+		}
+
+		.fineprint {
+			margin: 18px 0 0;
+			color: var(--muted);
+			font-size: 0.85rem;
+			line-height: 1.5;
+		}
+
+		/**
+ * [TRANSICAO] A diagonal tomba sobre as credenciais.
+ *
+ * .sweep-bar e uma caixa enorme ancorada no vertice INFERIOR da diagonal
+ * (fixo), com overflow:hidden — a sua aresta de ataque assenta em cima da
+ * diagonal do painel e o corpo estende-se para o lado dourado. Rodar essa
+ * caixa em torno do vertice varre o lado das credenciais ate ficar deitada
+ * (90deg), altura em que o cartao esta todo dourado.
+ *
+ * .sweep-face la dentro leva o dourado e roda ao CONTRARIO, em torno do
+ * mesmo ponto: as duas rotacoes anulam-se, por isso o gradiente fica
+ * parado em relacao ao cartao enquanto o recorte roda. Sem isto o fundo
+ * rodava com a caixa e via-se a emenda com o painel.
+ *
+ * Porque nao um clip-path animado (era o que estava antes): o clip-path
+ * obriga a repintar o cartao inteiro a cada frame; assim so muda uma
+ * matriz de transformacao, que o compositor resolve sem repintar nada.
+ *
+ * As percentagens (76/24, 25.333/92, 66.667, 33.333) saem do flex 40/60
+ * dos paineis e do --slant: 60%, e sao razoes puras — nao dependem do
+ * tamanho do ecra. Ja o angulo de repouso depende da proporcao do cartao,
+ * por isso e o nav.js que o mede e escreve em --bar-rest.
+ */
+.sweep-bar {
+	position: absolute;
+	/* a caixa passa 1x o cartao para la do vertice (bottom:-100% com
+	   400% de altura). Ao ficar deitada, essa parte cai do outro lado do
+	   vertice e tapa o canto que sobrava — antes era o dourado do painel
+	   que o tapava, mas agora esse sai durante a transicao. Em repouso
+	   fica fora do cartao, por isso nao muda nada. */
+	bottom: -100%;
+	width: 300%;
+	height: 400%;
+	z-index: 2;
+	overflow: hidden;
+	pointer-events: none;
+	visibility: hidden;
+	will-change: transform;
+	/* mesmo brilho da linha neon que a barra substitui enquanto anda */
+	box-shadow:
+		0 0 4px #ffffff,
+		0 0 16px rgba(224, 179, 82, 0.9);
+}
+
+/* risco claro na aresta de ataque: por dentro da caixa, senao o
+   overflow:hidden cortava-o */
+.sweep-bar::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: #f2e0b0;
+	pointer-events: none;
+}
+
+.sweep-face {
+	position: absolute;
+	/* 3x o cartao, centrada nele (100% da largura da caixa por 75% da
+	   altura, que ja e 4x). Tem de sobrar margem porque a face ja nao
+	   cancela a rotacao toda da barra: roda 65deg de liquido e, do tamanho
+	   do cartao, deixava cantos por pintar. O cartao fica no terco do
+	   meio — dai os stops do gradiente irem de 33.3% a 66.7%. */
+	top: 25%;
+	width: 100%;
+	height: 75%;
+	will-change: transform;
+}
+
+.split-card.art-right .sweep-bar {
+	/* 1px a mais para a aresta nao deixar um fio do fundo a espreitar
+	   entre a barra e a diagonal do painel (a face compensa-o) */
+	left: calc(76% - 1px);
+	transform-origin: 0 75%;
+	transform: rotate(var(--bar-rest, -31.34deg));
+}
+
+.split-card.art-right .sweep-bar::after {
+	left: 0;
+}
+
+.split-card.art-right .sweep-face {
+	left: calc(-58.667% + 1px);
+	transform-origin: 58.667% 66.667%;
+	transform: rotate(calc(0deg - var(--bar-rest, -31.34deg)));
+	background: linear-gradient(245deg,
+		#f4e7c0 0%,
+		#e8cf87 33.333%,
+		#c1942f 49.333%,
+		#5c3d08 66.667%,
+		#3a2604 100%);
+}
+
+.split-card.art-left .sweep-bar {
+	/* 1px a mais para a aresta nao deixar um fio do fundo a espreitar
+	   entre a barra e a diagonal do painel (a face compensa-o) */
+	right: calc(76% - 1px);
+	transform-origin: 100% 75%;
+	transform: rotate(var(--bar-rest, 31.34deg));
+}
+
+.split-card.art-left .sweep-bar::after {
+	right: 0;
+}
+
+.split-card.art-left .sweep-face {
+	left: calc(58.667% - 1px);
+	transform-origin: 41.333% 66.667%;
+	transform: rotate(calc(0deg - var(--bar-rest, 31.34deg)));
+	background: linear-gradient(115deg,
+		#f4e7c0 0%,
+		#e8cf87 33.333%,
+		#c1942f 49.333%,
+		#5c3d08 66.667%,
+		#3a2604 100%);
+}
+
+/* Durante a transicao saem os dois pedacos fixos do painel: a linha neon
+   (senao ficavam duas diagonais acesas, a que anda e a que ficou para
+   tras) e o dourado. O dourado tem de sair porque a luz agora roda: se o
+   painel ficasse por cima com a luz parada, via-se a emenda ao longo da
+   diagonal de repouso. A barra tapa exatamente o mesmo trapezio e no
+   instante 0 tem o mesmo gradiente, por isso a troca nao se ve. O WELCOME
+   fica — esta acima da barra. */
+.split-card.sweep-out .glow-panel::before,
+.sweep-in .split-card .glow-panel::before,
+.split-card.sweep-out .glow-panel::after,
+.sweep-in .split-card .glow-panel::after {
+	opacity: 0;
+}
+
+/* --- Sai: a barra tomba sobre as credenciais ------------------------- */
+.split-card.sweep-out .sweep-bar {
+	visibility: visible;
+}
+
+.split-card.art-left.sweep-out .sweep-bar {
+	animation: barFallLeft 700ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+.split-card.art-left.sweep-out .sweep-face {
+	animation: faceFallLeft 700ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+.split-card.art-right.sweep-out .sweep-bar {
+	animation: barFallRight 700ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+.split-card.art-right.sweep-out .sweep-face {
+	animation: faceFallRight 700ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+}
+
+/* --- Entra: a pagina abre tapada e a barra levanta-se ----------------- */
+/* Estado tapado sem depender de medicao: 90deg tapa seja qual for a
+   proporcao, por isso ja esta certo no primeiro paint. */
+.sweep-in .sweep-bar {
+	visibility: visible;
+}
+
+.sweep-in .split-card.art-left .sweep-bar {
+	transform: rotate(90deg);
+}
+
+/* -90 + 65: a barra tapa na mesma, mas a face fica a meio caminho, com
+   o gradiente em 180deg (115 + 65) — luz no topo ao centro. O login
+   chega ao mesmo 180deg (245 - 65), por isso a luz nao se teleporta. */
+.sweep-in .split-card.art-left .sweep-face {
+	transform: rotate(-25deg);
+}
+
+.sweep-in .split-card.art-right .sweep-bar {
+	transform: rotate(-90deg);
+}
+
+.sweep-in .split-card.art-right .sweep-face {
+	transform: rotate(25deg);
+}
+
+/* A subida e a descida ao contrario: os mesmos keyframes com direction
+   reverse, para as duas metades nao poderem divergir. */
+.sweep-in.sweep-go .split-card.art-left .sweep-bar {
+	animation: barFallLeft 780ms cubic-bezier(0.6, 0, 0.3, 1) reverse forwards;
+}
+
+.sweep-in.sweep-go .split-card.art-left .sweep-face {
+	animation: faceFallLeft 780ms cubic-bezier(0.6, 0, 0.3, 1) reverse forwards;
+}
+
+.sweep-in.sweep-go .split-card.art-right .sweep-bar {
+	animation: barFallRight 780ms cubic-bezier(0.6, 0, 0.3, 1) reverse forwards;
+}
+
+.sweep-in.sweep-go .split-card.art-right .sweep-face {
+	animation: faceFallRight 780ms cubic-bezier(0.6, 0, 0.3, 1) reverse forwards;
+}
+
+@keyframes barFallLeft {
+	from { transform: rotate(var(--bar-rest, 31.34deg)); }
+	to   { transform: rotate(90deg); }
+}
+
+/* A face cancela a rotacao da barra menos 65deg: e essa diferenca que faz
+   a luz viajar do canto ate ao topo ao centro durante a queda, e do topo
+   ate ao outro canto durante a subida da pagina seguinte. */
+@keyframes faceFallLeft {
+	from { transform: rotate(calc(0deg - var(--bar-rest, 31.34deg))); }
+	to   { transform: rotate(-25deg); }
+}
+
+@keyframes barFallRight {
+	from { transform: rotate(var(--bar-rest, -31.34deg)); }
+	to   { transform: rotate(-90deg); }
+}
+
+@keyframes faceFallRight {
+	from { transform: rotate(calc(0deg - var(--bar-rest, -31.34deg))); }
+	to   { transform: rotate(25deg); }
+}
+
+/**
+ * [ENTRADA-DO-TEXTO] As letras surgem depois de a barra subir.
+ *
+ * Cada bloco entra a partir do lado em que esta: no login as credenciais
+ * estao a esquerda e entram da esquerda, o WELCOME esta a direita e entra
+ * da direita; no registo e ao contrario. Dai haver uma so regra por lado
+ * e nao por pagina.
+ *
+ * O atraso conta a partir do momento em que a barra comeca a subir, por
+ * isso e igual a duracao da subida: o texto arranca quando a ultima
+ * nesga de dourado sai da frente.
+ */
+.sweep-in .form-panel,
+.sweep-in .glow-text {
+	opacity: 0;
+}
+
+.sweep-in.sweep-go .split-card.art-right .form-panel,
+.sweep-in.sweep-go .split-card.art-left .glow-text {
+	animation: textInFromLeft 520ms cubic-bezier(0.2, 0, 0.2, 1) 700ms both;
+}
+
+.sweep-in.sweep-go .split-card.art-left .form-panel,
+.sweep-in.sweep-go .split-card.art-right .glow-text {
+	animation: textInFromRight 520ms cubic-bezier(0.2, 0, 0.2, 1) 700ms both;
+}
+
+/* A sair, o WELCOME recolhe para o seu lado — senao ficava pousado no
+   cartao todo dourado e desaparecia de repente na troca de pagina. As
+   credenciais nao precisam: a barra passa-lhes por cima. */
+.split-card.art-left.sweep-out .glow-text {
+	animation: textInFromLeft 320ms ease-in reverse forwards;
+}
+
+.split-card.art-right.sweep-out .glow-text {
+	animation: textInFromRight 320ms ease-in reverse forwards;
+}
+
+@keyframes textInFromLeft {
+	from { opacity: 0; transform: translateX(-42px); }
+	to   { opacity: 1; transform: none; }
+}
+
+@keyframes textInFromRight {
+	from { opacity: 0; transform: translateX(42px); }
+	to   { opacity: 1; transform: none; }
+}
+
+@keyframes floatIn {
+			from {
+				opacity: 0;
+				transform: translateY(16px) scale(0.98);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0) scale(1);
+			}
+		}
+
+		@media (max-width: 480px) {
+			.card {
+				padding: 26px 20px;
+				border-radius: 20px;
+			}
+
+			h1 {
+				font-size: 1.8rem;
+			}
+		}
+
+
+/**
+ * [LAYOUT-DIVIDIDO] Cartão em duas colunas com moldura néon.
+ *
+ * Estrutura esperada no HTML:
+ *   <section class="split-card art-right">   (arte à direita: login, 2fa)
+ *   <section class="split-card art-left">    (arte à esquerda: registo)
+ *       <div class="form-panel"> ... </div>
+ *       <div class="glow-panel"> <div class="glow-text"> ... </div> </div>
+ *
+ * A moldura néon é a própria borda do cartão (border + box-shadow).
+ * O painel diagonal é o .glow-panel recortado com clip-path:
+ *   ::after  = o trapézio preenchido a teal
+ *   ::before = a mesma forma em ciano vivo, 3px mais para fora, de modo
+ *              que só a aresta espreite — é essa fatia que faz a linha néon.
+ * Trocar .art-right por .art-left espelha tudo automaticamente.
+ */
+
+.split-shell {
+	padding: 32px 20px;
+}
+
+.split-card {
+	/* Inclinacao da diagonal: quanto do painel a aresta percorre na
+	   horizontal de cima a baixo. Maior = mais inclinada. Unico knob:
+	   o lado art-left espelha-o sozinho com calc(). */
+	--slant: 60%;
+	position: relative;
+	display: flex;
+	width: min(100%, 880px);
+	/* Altura unica para todas as paginas: tem de ser >= a pagina com mais
+	   conteudo (o registo, com 3 campos, da ~506px), senao o cartao do
+	   registo fica mais alto que o do login. */
+	min-height: 520px;
+	/* cantos a direito: o cartao exterior fica em bico */
+	border-radius: 0;
+	overflow: hidden;
+	background: #0d0a06;
+	box-shadow:
+		0 0 18px rgba(192, 138, 30, 0.45),
+		0 0 70px rgba(192, 138, 30, 0.2),
+		var(--shadow);
+	isolation: isolate;
+}
+
+/* Moldura néon desenhada por cima de tudo, para que o painel diagonal
+   não tape a borda do lado em que encosta. */
+.split-card::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 4;
+	pointer-events: none;
+	border: 1.5px solid var(--neon);
+	border-radius: inherit;
+	box-shadow:
+		0 0 10px rgba(224, 179, 82, 0.6),
+		inset 0 0 12px rgba(224, 179, 82, 0.35);
+}
+
+.form-panel {
+	position: relative;
+	z-index: 1;
+	flex: 1 1 40%;
+	padding: 48px 44px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+}
+
+.glow-panel {
+	position: relative;
+	z-index: 3;
+	flex: 0 0 60%;
+	display: grid;
+	place-items: center;
+	padding: 44px 34px;
+}
+
+.glow-panel::before,
+.glow-panel::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	pointer-events: none;
+}
+
+/* Fatia ciano que forma a linha néon da diagonal */
+.glow-panel::before {
+	background: #f2e0b0;
+	filter:
+		drop-shadow(0 0 3px #ffffff)
+		drop-shadow(0 0 8px #e0b352)
+		drop-shadow(0 0 18px rgba(192, 138, 30, 0.9));
+}
+
+/* Trapézio preenchido */
+.glow-panel::after {
+	left: 0;
+	right: 0;
+	/* o claro do gradiente fica do lado oposto à diagonal, senão a linha
+	   néon desaparece contra o teal quase branco */
+	background: linear-gradient(245deg, #e8cf87 0%, #c1942f 48%, #5c3d08 100%);
+}
+
+.glow-text {
+	position: relative;
+	z-index: 1;
+	text-align: center;
+	color: #ffffff;
+	font-weight: 800;
+	line-height: 1.18;
+	font-size: clamp(1.4rem, 2.5vw, 2rem);
+	letter-spacing: 0.04em;
+	/* sombra escura: o texto branco assenta sobre o teal claro do trapezio */
+	text-shadow: 0 2px 10px rgba(58, 38, 4, 0.55);
+}
+
+.glow-text strong {
+	display: block;
+}
+
+/* --- Arte à direita (login, 2fa): trapézio mais largo em cima --- */
+.split-card.art-right .glow-panel {
+	order: 2;
+	margin-left: -88px;
+	/* 34px (padding base) + metade do percurso horizontal da diagonal.
+	   A meia-altura, onde o texto esta, o teal acaba a meio do percurso;
+	   sem isto o texto fica centrado na caixa e nao na mancha visivel.
+	   18% = painel (60% do cartao) x slant (60%) / 2. */
+	padding-left: calc(18% + 34px);
+}
+
+.split-card.art-right .form-panel {
+	padding-right: 104px;
+}
+
+.split-card.art-right .glow-panel::before {
+	left: -4px;
+	right: 0;
+}
+
+.split-card.art-right .glow-panel::before,
+.split-card.art-right .glow-panel::after {
+	clip-path: polygon(0 0, 100% 0, 100% 100%, var(--slant) 100%);
+}
+
+.split-card.art-right .glow-panel::after {
+	background: linear-gradient(245deg, #e8cf87 0%, #c1942f 48%, #5c3d08 100%);
+	/* gradiente a medida do cartao (o painel ocupa 60% da largura) para
+	   coincidir, pixel a pixel, com o da barra da transicao */
+	background-size: 166.667% 100%;
+	background-position: 100% 0;
+	background-repeat: no-repeat;
+}
+
+/* --- Arte à esquerda (registo): espelho do anterior --- */
+.split-card.art-left .glow-panel {
+	order: -1;
+	margin-right: -88px;
+	/* 34px (padding base) + metade do percurso horizontal da diagonal.
+	   A meia-altura, onde o texto esta, o teal acaba a meio do percurso;
+	   sem isto o texto fica centrado na caixa e nao na mancha visivel.
+	   18% = painel (60% do cartao) x slant (60%) / 2. */
+	padding-right: calc(18% + 34px);
+}
+
+.split-card.art-left .form-panel {
+	padding-left: 104px;
+}
+
+.split-card.art-left .glow-panel::before {
+	left: 0;
+	right: -4px;
+}
+
+.split-card.art-left .glow-panel::before,
+.split-card.art-left .glow-panel::after {
+	clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
+}
+
+.split-card.art-left .glow-panel::after {
+	background: linear-gradient(115deg, #e8cf87 0%, #c1942f 48%, #5c3d08 100%);
+	/* gradiente a medida do cartao (o painel ocupa 60% da largura) para
+	   coincidir, pixel a pixel, com o da barra da transicao */
+	background-size: 166.667% 100%;
+	background-position: 0 0;
+	background-repeat: no-repeat;
+}
+
+/* Inputs em underline dentro do painel do formulário */
+.form-panel .field {
+	display: grid;
+	gap: 6px;
+	font-size: 0.9rem;
+	color: #e6d7b4;
+	margin-bottom: 8px;
+}
+
+.form-panel .field-input,
+.form-panel .password-field {
+	position: relative;
+	display: block;
+}
+
+.form-panel input {
+	width: 100%;
+	padding: 12px 36px 10px 2px;
+	border: 0;
+	border-bottom: 1.5px solid var(--field-line);
+	border-radius: 0;
+	background: transparent;
+	color: var(--text);
+	font-size: 1rem;
+	outline: none;
+	transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.form-panel input:focus {
+	border-bottom-color: var(--neon);
+	box-shadow: 0 2px 10px -4px var(--accent);
+	transform: none;
+}
+
+.form-panel .field-input svg {
+	position: absolute;
+	right: 2px;
+	bottom: 11px;
+	width: 18px;
+	height: 18px;
+	color: var(--accent);
+	opacity: 0.75;
+	pointer-events: none;
+}
+
+.form-panel .button {
+	margin-top: 22px;
+}
+
+/* Título centrado, encostado ao topo das credenciais. */
+.form-panel #login-title,
+.form-panel #register-title,
+.form-panel #setup-title {
+	text-align: center;
+	margin: 0 0 26px;
+}
+
+/* so o 2fa tem subtitulo; acompanha o titulo */
+.form-panel .subtitle {
+	text-align: center;
+}
+
+/* Rodapé ("ja tens conta?") centrado e encostado ao fundo do painel.
+   O margin-top:auto absorve o espaco livre, por isso funciona quer o
+   rodape seja filho direto do .form-panel (login) quer esteja dentro
+   do formulario esticado (registo). */
+.form-panel .form-footer {
+	margin-top: auto;
+	padding-top: 22px;
+	display: grid;
+	gap: 2px;
+	text-align: center;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.form-panel .form-footer p {
+	margin: 0;
+}
+
+.form-panel .form-footer a {
+	color: var(--neon);
+	font-weight: 700;
+}
+
+.button.pill {
+	border-radius: 999px;
+	box-shadow: 0 0 14px rgba(192, 138, 30, 0.5), 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.button.pill:hover {
+	box-shadow: 0 0 22px rgba(192, 138, 30, 0.75), 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.form-panel .fineprint a,
+.form-panel .subtitle a {
+	color: var(--neon);
+}
+
+@media (max-width: 760px) {
+	.split-card,
+	.split-card.art-right,
+	.split-card.art-left {
+		flex-direction: column;
+		width: 100%;
+		min-height: 0;
+	}
+
+	/* Empilhado, a diagonal deixa de fazer sentido: a arte passa a ser
+	   uma faixa no topo, com uma linha néon a separar do formulário. */
+	.split-card.art-right .glow-panel,
+	.split-card.art-left .glow-panel {
+		order: -1;
+		flex: 0 0 auto;
+		margin: 0;
+		padding: 30px 24px;
+		border-bottom: 1.5px solid var(--neon);
+		box-shadow: 0 2px 16px -2px rgba(192, 138, 30, 0.6);
+	}
+
+	.glow-panel::before {
+		display: none;
+	}
+
+	.split-card.art-right .glow-panel::after,
+	.split-card.art-left .glow-panel::after {
+		clip-path: none;
+	}
+
+	.split-card.art-right .form-panel,
+	.split-card.art-left .form-panel {
+		padding: 32px 24px;
+	}
+
+	/* Empilhado nao ha diagonal para tombar, mas a transicao nao se perde:
+	   a barra passa a ser uma cortina do tamanho do cartao, que desce a
+	   tapar e sobe a revelar. So muda a forma do movimento. */
+	.sweep-bar {
+		inset: 0;
+		width: auto;
+		height: auto;
+		transform: translateY(-100%);
+		transform-origin: center;
+		box-shadow: 0 6px 24px rgba(192, 138, 30, 0.45);
+	}
+
+	.split-card.art-right .sweep-bar,
+	.split-card.art-left .sweep-bar {
+		left: auto;
+		right: auto;
+		transform-origin: center;
+	}
+
+	/* o risco da aresta so faz sentido numa diagonal */
+	.sweep-bar::after {
+		display: none;
+	}
+
+	.sweep-face {
+		inset: 0;
+		width: auto;
+		height: auto;
+		transform: none;
+		background: linear-gradient(160deg, #e8cf87 0%, #c1942f 48%, #5c3d08 100%);
+	}
+
+	.split-card.art-right .sweep-face,
+	.split-card.art-left .sweep-face {
+		left: auto;
+		top: auto;
+		transform: none;
+		transform-origin: center;
+	}
+
+	/* uma so animacao, na barra: a face ja nao precisa de contra-rodar */
+	.split-card.art-left.sweep-out .sweep-bar,
+	.split-card.art-right.sweep-out .sweep-bar {
+		animation: cortinaDesce 520ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+	}
+
+	.split-card.art-left.sweep-out .sweep-face,
+	.split-card.art-right.sweep-out .sweep-face,
+	.sweep-in.sweep-go .split-card.art-left .sweep-face,
+	.sweep-in.sweep-go .split-card.art-right .sweep-face {
+		animation: none;
+	}
+
+	.sweep-in .split-card.art-left .sweep-bar,
+	.sweep-in .split-card.art-right .sweep-bar {
+		transform: translateY(0);
+	}
+
+	.sweep-in .split-card.art-left .sweep-face,
+	.sweep-in .split-card.art-right .sweep-face {
+		transform: none;
+	}
+
+	.sweep-in.sweep-go .split-card.art-left .sweep-bar,
+	.sweep-in.sweep-go .split-card.art-right .sweep-bar {
+		animation: cortinaDesce 560ms cubic-bezier(0.6, 0, 0.3, 1) reverse forwards;
+	}
+
+	@keyframes cortinaDesce {
+		from { transform: translateY(-100%); }
+		to   { transform: translateY(0); }
+	}
+
+	/* aqui o painel ocupa a largura toda: o gradiente volta a ser do
+	   tamanho dele, senao ficava esticado a medida do cartao */
+	.split-card.art-right .glow-panel::after,
+	.split-card.art-left .glow-panel::after {
+		background-size: 100% 100%;
+	}
+}

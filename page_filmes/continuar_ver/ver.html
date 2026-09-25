@@ -1,0 +1,284 @@
+<!--
+	[PAGINA-CONTINUAR] ver.html
+	O que ficou a meio. Vem do servidor (ver.php), ligado a conta, por isso
+	e de cada utilizador e acompanha-o em qualquer dispositivo.
+
+	A barra de topo e a paleta vem do ../catalogo.css; so o que e proprio
+	desta pagina esta em ver.css.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LumFlix | Continue watching</title>
+	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="../catalogo.css">
+	<link rel="stylesheet" href="ver.css">
+</head>
+<body>
+	<header class="topbar is-stuck">
+		<span class="brand-logo">LUMFLIX</span>
+
+		<nav class="topnav">
+			<a href="../filmes/filmes.html">Movies</a>
+			<a href="../series/series.html">Series</a>
+			<a href="../lista/lista.html">My list</a>
+			<a href="ver.html" aria-current="page">Continue watching</a>
+		</nav>
+
+		<div class="topbar-end">
+			<a class="avatar" id="avatar" href="../conta/conta.html" aria-label="My account">·</a>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</div>
+	</header>
+
+	<main class="ver-shell">
+		<header class="ver-topo">
+			<div>
+				<h1>Continue watching</h1>
+				<p class="nota" id="resumo">…</p>
+			</div>
+			<button type="button" class="button pill ghost" id="limparTudo" hidden>Clear all</button>
+		</header>
+
+		<div class="ver-grelha" id="grelha"></div>
+
+		<!-- quando nao ha nada a meio -->
+		<div class="ver-vazio" id="vazio" hidden>
+			<div class="ver-vazio-marca" aria-hidden="true">▶</div>
+			<h2>Nothing started yet</h2>
+			<p>Whatever you play shows up here, right where you left it.</p>
+			<div class="hero-actions">
+				<a class="button pill" href="../filmes/filmes.html">Browse movies</a>
+				<a class="button pill ghost" href="../series/series.html">Browse series</a>
+			</div>
+		</div>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const SESSAO = '../../authentication_page/Shared/session.php';
+		const LOGIN = '../../authentication_page/Login/auth.html';
+
+		const API = 'ver.php';
+
+		/* chave antiga, do tempo em que isto vivia no browser; so serve
+		   para trazer o que la ficou, uma unica vez */
+		const CHAVE_ANTIGA = 'lumflix:continuar';
+
+		let token = '';
+
+		/* Guarda de sessao, igual a das outras paginas: encaminha quem nao
+		   tem sessao, sem servir de protecao real ao conteudo. */
+		(async () => {
+			try {
+				const resp = await fetch(SESSAO, { credentials: 'same-origin' });
+				const res = await resp.json();
+				if (!res.authenticated) {
+					window.location.replace(LOGIN);
+					return;
+				}
+				$('avatar').textContent = (res.user || '?')[0].toUpperCase();
+			} catch (err) {
+				/* servidor em baixo: deixa ver a pagina na mesma */
+			}
+		})();
+
+		$('logout').addEventListener('click', async () => {
+			const corpo = new FormData();
+			corpo.append('action', 'logout');
+			try {
+				await fetch(SESSAO, { method: 'POST', credentials: 'same-origin', body: corpo });
+			} catch (err) { /* sai na mesma */ }
+			window.location.href = LOGIN;
+		});
+
+		function esc(v) {
+			return String(v ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+			}[c]));
+		}
+
+		/* Mesma funcao das paginas de catalogo, de proposito: e o que faz a
+		   arte daqui sair igual a do cartaz que se clicou la. */
+		function cores(titulo) {
+			let h = 0;
+			for (const ch of titulo) h = (h * 31 + ch.charCodeAt(0)) % 360;
+			const matiz = 18 + (h % 44);
+
+			return {
+				c1: `hsl(${matiz} ${44 + (h % 20)}% ${26 + (h % 12)}%)`,
+				c2: `hsl(${(matiz + 16) % 360} 40% 7%)`,
+				c3: `hsl(${(matiz + 8) % 360} 72% 62% / 0.5)`,
+			};
+		}
+
+		/* ---- dados -------------------------------------------------------- */
+
+		async function chamar(action, campos) {
+			const escrita = campos !== undefined;
+			const url = escrita ? API : `${API}?action=${encodeURIComponent(action)}`;
+			const opcoes = {
+				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			};
+
+			if (escrita) {
+				const corpo = new FormData();
+				corpo.append('action', action);
+				corpo.append('token', token);
+				Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+				opcoes.method = 'POST';
+				opcoes.body = corpo;
+			}
+
+			const resp = await fetch(url, opcoes);
+			return resp.json();
+		}
+
+		/**
+		 * Traz o que tenha ficado no browser da versao anterior, uma unica
+		 * vez, e so se o servidor ainda nao tiver nada — de outro modo
+		 * apagava-se o que o utilizador ja tem noutro dispositivo.
+		 */
+		async function trazerDoBrowser() {
+			let antigos = [];
+			try {
+				const bruto = JSON.parse(localStorage.getItem(CHAVE_ANTIGA) || '[]');
+				if (Array.isArray(bruto)) antigos = bruto;
+			} catch (err) { return; }
+
+			if (!antigos.length) return;
+
+			/* do mais antigo para o mais recente, para a ordem no servidor
+			   ficar igual a que estava aqui */
+			for (const item of antigos.slice().reverse()) {
+				await chamar('registar', {
+					titulo: item.titulo,
+					categoria: item.categoria || '',
+					extra: item.extra || '',
+				});
+				if (item.progresso) {
+					await chamar('progresso', { titulo: item.titulo, progresso: item.progresso });
+				}
+			}
+
+			try { localStorage.removeItem(CHAVE_ANTIGA); } catch (err) {}
+		}
+
+		function quandoFoi(iso) {
+			const d = new Date(iso);
+			if (Number.isNaN(d.getTime())) return '';
+
+			const minutos = Math.round((Date.now() - d.getTime()) / 60000);
+			if (minutos < 1) return 'just now';
+			if (minutos < 60) return `${minutos} min ago`;
+
+			const horas = Math.round(minutos / 60);
+			if (horas < 24) return `${horas} h ago`;
+
+			const dias = Math.round(horas / 24);
+			return dias === 1 ? 'yesterday' : `${dias} days ago`;
+		}
+
+		/* ---- desenho ------------------------------------------------------ */
+
+		function cartao(item) {
+			const { c1, c2, c3 } = cores(item.titulo);
+			const pct = Math.max(0, Math.min(100, Math.round(item.progresso || 0)));
+			const restante = pct >= 98 ? 'Watched' : `${pct}% watched`;
+			const arte = /^https:\/\/image\.tmdb\.org\/t\/p\//.test(item.arte || '');
+
+			return `
+				<article class="visto" style="--c1:${c1};--c2:${c2};--c3:${c3}">
+					<div class="visto-arte${arte ? ' tem-arte' : ''}">
+						${arte ? `<img class="visto-img" src="${esc(item.arte)}" alt=""
+							loading="lazy"
+							onerror="this.closest('.visto-arte').classList.remove('tem-arte'); this.remove();">` : ''}
+						<span class="visto-marca" aria-hidden="true">${esc(item.titulo[0])}</span>
+						<button type="button" class="visto-play" data-ver="${esc(item.titulo)}"
+							aria-label="Resume ${esc(item.titulo)}">▶</button>
+						<button type="button" class="visto-tirar" data-tirar="${esc(item.titulo)}"
+							aria-label="Remove from list">&times;</button>
+						<div class="barra"><span style="width:${pct}%"></span></div>
+					</div>
+
+					<div class="visto-corpo">
+						<h3>${esc(item.titulo)}</h3>
+						<p class="visto-meta">${esc(item.extra || item.categoria || '')}</p>
+						<p class="visto-estado">${esc(restante)} · ${esc(quandoFoi(item.visto_em))}</p>
+					</div>
+				</article>`;
+		}
+
+		function desenhar(lista) {
+			$('vazio').hidden = lista.length > 0;
+			$('limparTudo').hidden = lista.length === 0;
+
+			$('resumo').textContent = lista.length
+				? `${lista.length} ${lista.length === 1 ? 'title' : 'titles'} in progress`
+				: 'Nothing in progress right now.';
+
+			$('grelha').innerHTML = lista.map(cartao).join('');
+		}
+
+		/* ---- interacao ---------------------------------------------------- */
+
+		let itens = [];
+
+		document.addEventListener('click', async (ev) => {
+			const tirar = ev.target.closest('[data-tirar]');
+			if (tirar) {
+				const res = await chamar('tirar', { titulo: tirar.dataset.tirar });
+				if (res.status === 'ok') desenhar(itens = res.itens || []);
+				return;
+			}
+
+			const ver = ev.target.closest('[data-ver]');
+			if (ver) {
+				/* Sem leitor de video, carregar faz avancar o progresso. E um
+				   substituto: quando houver leitor a serio, e ele que passa a
+				   escrever o progresso e estas linhas desaparecem. */
+				const item = itens.find((x) => x.titulo === ver.dataset.ver);
+				if (!item) return;
+
+				const res = await chamar('progresso', {
+					titulo: item.titulo,
+					progresso: Math.min(100, (item.progresso || 0) + 12),
+				});
+				if (res.status === 'ok') desenhar(itens = res.itens || []);
+			}
+		});
+
+		$('limparTudo').addEventListener('click', async () => {
+			const res = await chamar('limpar', {});
+			if (res.status === 'ok') desenhar(itens = res.itens || []);
+		});
+
+		(async () => {
+			let res;
+			try {
+				res = await chamar('listar');
+			} catch (err) {
+				desenhar([]);
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				window.location.replace(LOGIN);
+				return;
+			}
+
+			token = res.token;
+
+			if (!(res.itens || []).length) {
+				await trazerDoBrowser();
+				res = await chamar('listar');
+			}
+
+			desenhar(itens = res.itens || []);
+		})();
+	</script>
+</body>
+</html>

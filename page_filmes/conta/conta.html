@@ -1,0 +1,389 @@
+<!--
+	[PAGINA-CONTA] conta.html
+	Perfil da conta e definicoes de seguranca: trocar a palavra-passe e
+	ligar ou desligar o 2FA. Fala com conta.php.
+
+	A barra de topo e a paleta vem do ../catalogo.css, o mesmo das paginas
+	de filmes e series; so o que e proprio desta pagina esta em conta.css.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LumFlix | My account</title>
+	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="../catalogo.css">
+	<link rel="stylesheet" href="conta.css">
+</head>
+<body>
+	<header class="topbar is-stuck">
+		<span class="brand-logo">LUMFLIX</span>
+
+		<nav class="topnav">
+			<a href="../filmes/filmes.html">Movies</a>
+			<a href="../series/series.html">Series</a>
+			<a href="../lista/lista.html">My list</a>
+			<a href="../continuar_ver/ver.html">Continue watching</a>
+		</nav>
+
+		<div class="topbar-end">
+			<span class="avatar" id="avatar" aria-hidden="true">·</span>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</div>
+	</header>
+
+	<main class="conta-shell">
+		<h1>My account</h1>
+
+		<div id="aviso" class="aviso" role="status"></div>
+
+		<!-- ---- perfil ------------------------------------------------- -->
+		<section class="painel perfil">
+			<div class="perfil-avatar" id="perfilAvatar" aria-hidden="true">·</div>
+
+			<div class="perfil-dados">
+				<h2 id="perfilNome">…</h2>
+				<dl class="factos">
+					<div>
+						<dt>Status</dt>
+						<dd id="perfilEstado">—</dd>
+					</div>
+					<div>
+						<dt>Member since</dt>
+						<dd id="perfilCriada">—</dd>
+					</div>
+					<div>
+						<dt>Two-step</dt>
+						<dd id="perfilDoisPassos">—</dd>
+					</div>
+					<div>
+						<dt>Email</dt>
+						<dd id="perfilEmail">—</dd>
+					</div>
+				</dl>
+			</div>
+		</section>
+
+		<!-- ---- email --------------------------------------------------- -->
+		<section class="painel">
+			<h2>Email</h2>
+
+			<form id="formEmail" class="form-conta" autocomplete="off">
+				<label class="campo">
+					Email address
+					<input type="email" name="email" id="campoEmail" placeholder="name@example.com" maxlength="254" autocomplete="email">
+				</label>
+				<label class="campo">
+					Current password
+					<input type="password" name="atual" autocomplete="current-password" required>
+				</label>
+				<div class="accoes">
+					<button class="button pill" type="submit">Save email</button>
+					<!-- so aparece quando ha mesmo um email guardado -->
+					<button class="button pill ghost" type="button" id="btnApagarEmail" hidden>Delete email</button>
+				</div>
+			</form>
+		</section>
+
+		<!-- ---- palavra-passe ------------------------------------------ -->
+		<section class="painel">
+			<h2>Password</h2>
+			<p class="nota">We ask for the current one to confirm it is you, even with a session open.</p>
+
+			<form id="formPassword" class="form-conta" autocomplete="off">
+				<label class="campo">
+					Current password
+					<input type="password" name="atual" autocomplete="current-password" required>
+				</label>
+				<label class="campo">
+					New password
+					<input type="password" name="nova" autocomplete="new-password" minlength="8" required>
+				</label>
+				<label class="campo">
+					Repeat the new one
+					<input type="password" name="confirma" autocomplete="new-password" minlength="8" required>
+				</label>
+				<button class="button pill" type="submit">Save</button>
+			</form>
+		</section>
+
+		<!-- ---- 2FA ----------------------------------------------------- -->
+		<section class="painel">
+			<h2>Two-step verification</h2>
+			<p class="nota" id="notaDoisPassos">…</p>
+
+			<form id="form2fa" class="form-conta" autocomplete="off">
+				<label class="campo">
+					Current password
+					<input type="password" name="atual" autocomplete="current-password" required>
+				</label>
+				<button class="button pill" type="submit" id="btn2fa">…</button>
+			</form>
+
+			<!-- so aparece depois de ligar: o secret sai uma unica vez -->
+			<div class="segredo" id="segredo" hidden>
+				<strong>Save this code now</strong>
+				<p>Open your authenticator app, choose &ldquo;enter a key&rdquo; and paste this. We will not show it again.</p>
+				<code id="segredoTexto"></code>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const API = 'conta.php';
+		const SESSAO = '../../authentication_page/Shared/session.php';
+		const LOGIN = '../../authentication_page/Login/auth.html';
+
+		let token = '';
+		let tem2fa = false;
+
+		const MENSAGENS = {
+			sem_sessao: 'Your session ended. Sign in again.',
+			token_invalido: 'Your session expired. Reload the page.',
+			password_errada: 'That current password is not right.',
+			password_fraca: 'The new password needs at least 8 characters.',
+			password_diferente: 'The two new passwords do not match.',
+			email_invalido: 'That email address does not look valid.',
+			metodo_invalido: 'Invalid request.',
+			accao_desconhecida: 'Unknown action.',
+			rede: 'Could not reach the server. Is WAMP running?',
+			default: 'Something went wrong. Try again.',
+		};
+
+		function avisar(texto, mau) {
+			const caixa = $('aviso');
+			caixa.textContent = texto;
+			caixa.classList.toggle('mau', !!mau);
+			caixa.classList.add('visivel');
+		}
+
+		function avisarErro(codigo) {
+			avisar(MENSAGENS[codigo] || MENSAGENS.default, true);
+		}
+
+		function limparAviso() {
+			$('aviso').classList.remove('visivel');
+		}
+
+		async function chamar(action, campos) {
+			const escrita = campos !== undefined;
+			const url = escrita ? API : `${API}?action=${encodeURIComponent(action)}`;
+			const opcoes = {
+				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			};
+
+			if (escrita) {
+				const corpo = new FormData();
+				corpo.append('action', action);
+				corpo.append('token', token);
+				Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+				opcoes.method = 'POST';
+				opcoes.body = corpo;
+			}
+
+			const resp = await fetch(url, opcoes);
+			return resp.json();
+		}
+
+		function dataCurta(iso) {
+			if (!iso) return '—';
+			const d = new Date(iso);
+			if (Number.isNaN(d.getTime())) return '—';
+			return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
+		}
+
+		const ESTADOS = {
+			approved: ['Active', 'bom'],
+			pending: ['Waiting for approval', 'espera'],
+			denied: ['Access denied', 'mau'],
+		};
+
+		function pintar(perfil) {
+			token = perfil.token;
+			tem2fa = perfil.tem_2fa;
+
+			const inicial = (perfil.user || '?')[0].toUpperCase();
+			$('avatar').textContent = inicial;
+			$('perfilAvatar').textContent = inicial;
+			$('perfilNome').textContent = perfil.user;
+
+			const [rotulo, tom] = ESTADOS[perfil.estado] || [perfil.estado, ''];
+			$('perfilEstado').textContent = rotulo;
+			$('perfilEstado').className = 'selo ' + tom;
+
+			$('perfilCriada').textContent = dataCurta(perfil.created_at);
+			$('perfilDoisPassos').textContent = tem2fa ? 'On' : 'Off';
+			$('perfilDoisPassos').className = 'selo ' + (tem2fa ? 'bom' : 'espera');
+
+			$('perfilEmail').textContent = perfil.email || 'Not set';
+			$('perfilEmail').className = perfil.email ? '' : 'selo espera';
+			$('campoEmail').value = perfil.email || '';
+			$('btnApagarEmail').hidden = !perfil.email;
+
+			$('notaDoisPassos').textContent = tem2fa
+				? 'It is on. Signing in asks for the six-digit code from your app.'
+				: 'It is off. Turning it on will ask for a six-digit code when signing in.';
+
+			$('btn2fa').textContent = tem2fa ? 'Turn off' : 'Turn on';
+			$('btn2fa').classList.toggle('perigo', tem2fa);
+		}
+
+		async function carregar() {
+			let res;
+			try {
+				res = await chamar('perfil');
+			} catch (err) {
+				avisarErro('rede');
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				window.location.replace(LOGIN);
+				return;
+			}
+
+			pintar(res);
+		}
+
+		/* ---- guardar o email --------------------------------------------- */
+
+		$('formEmail').addEventListener('submit', async (ev) => {
+			ev.preventDefault();
+			limparAviso();
+
+			const form = ev.target;
+			const dados = Object.fromEntries(new FormData(form));
+
+			let res;
+			try {
+				res = await chamar('email', dados);
+			} catch (err) {
+				avisarErro('rede');
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				avisarErro(res.error);
+				return;
+			}
+
+			/* limpa so a palavra-passe: o email fica no campo, para se ver
+			   o que ficou guardado */
+			form.querySelector('[name="atual"]').value = '';
+			avisar(res.email ? 'Email saved.' : 'Email removed.');
+
+			await carregar();
+		});
+
+		$('btnApagarEmail').addEventListener('click', async () => {
+			limparAviso();
+
+			const form = $('formEmail');
+			const atual = form.querySelector('[name="atual"]').value;
+
+			/* o botao e type="button", logo nao passa pela validacao do
+			   formulario: confirma-se aqui */
+			if (!atual) {
+				avisar('Enter your current password to confirm.', true);
+				return;
+			}
+
+			let res;
+			try {
+				res = await chamar('email', { atual, email: '' });
+			} catch (err) {
+				avisarErro('rede');
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				avisarErro(res.error);
+				return;
+			}
+
+			form.reset();
+			avisar('Email deleted.');
+			await carregar();
+		});
+
+		/* ---- trocar a palavra-passe -------------------------------------- */
+
+		$('formPassword').addEventListener('submit', async (ev) => {
+			ev.preventDefault();
+			limparAviso();
+
+			const form = ev.target;
+			const dados = Object.fromEntries(new FormData(form));
+
+			let res;
+			try {
+				res = await chamar('password', dados);
+			} catch (err) {
+				avisarErro('rede');
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				avisarErro(res.error);
+				return;
+			}
+
+			form.reset();
+			avisar('Password changed.');
+		});
+
+		/* ---- ligar / desligar o 2FA -------------------------------------- */
+
+		$('form2fa').addEventListener('submit', async (ev) => {
+			ev.preventDefault();
+			limparAviso();
+
+			const form = ev.target;
+			const atual = new FormData(form).get('atual');
+
+			let res;
+			try {
+				res = await chamar(tem2fa ? 'desligar_2fa' : 'ligar_2fa', { atual });
+			} catch (err) {
+				avisarErro('rede');
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				avisarErro(res.error);
+				return;
+			}
+
+			form.reset();
+
+			if (res.secret) {
+				/* agrupado de tres em tres, como na pagina de registo */
+				$('segredoTexto').textContent = res.secret.match(/.{1,3}/g).join(' ');
+				$('segredo').hidden = false;
+				avisar('Two-step is on. Save the code below.');
+			} else {
+				$('segredo').hidden = true;
+				avisar('Two-step is off.');
+			}
+
+			await carregar();
+		});
+
+		/* ---- sair --------------------------------------------------------- */
+
+		$('logout').addEventListener('click', async () => {
+			const corpo = new FormData();
+			corpo.append('action', 'logout');
+			try {
+				await fetch(SESSAO, { method: 'POST', credentials: 'same-origin', body: corpo });
+			} catch (err) { /* sai na mesma */ }
+			window.location.href = LOGIN;
+		});
+
+		carregar();
+	</script>
+</body>
+</html>

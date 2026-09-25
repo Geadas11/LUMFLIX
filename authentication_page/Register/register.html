@@ -1,0 +1,136 @@
+<!--
+	[PAGINA-REGISTO] register.html
+	Formulário de criação de conta (utilizador + password).
+	Envia os dados para register.php via fetch(); depois dá a escolher
+	entre configurar o 2FA (2fa/setup.html) ou ir direto para o login.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Create account | LumFlix</title>
+	<link rel="stylesheet" href="../Shared/style.css">
+	<link rel="stylesheet" href="register.css">
+	<script src="../Shared/nav.js"></script>
+</head>
+<body>
+	<main class="shell split-shell">
+		<section class="split-card art-left" aria-labelledby="register-title">
+			<div class="form-panel">
+				<h1 id="register-title">Register</h1>
+
+				<div id="errorBox" class="alert" role="alert"></div>
+
+				<form id="registerForm" autocomplete="on">
+					<label class="field">
+						<span class="field-input">
+							<input type="text" name="user" id="user" placeholder="Username" pattern="[a-zA-Z0-9_.-]{3,32}" autocomplete="username" required>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+						</span>
+					</label>
+					<label class="field">
+						<div class="password-field">
+							<input type="password" name="pass" id="pass" placeholder="Password" autocomplete="new-password" minlength="8" required>
+							<button type="button" class="toggle-password" data-target="pass" aria-label="Show password" aria-pressed="false">
+								<svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+								<svg class="icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+							</button>
+						</div>
+					</label>
+					<label class="field">
+						<div class="password-field">
+							<input type="password" name="pass_confirm" placeholder="Password Confirmation" id="pass_confirm" autocomplete="new-password" minlength="8" required>
+							<button type="button" class="toggle-password" data-target="pass_confirm" aria-label="Show password" aria-pressed="false">
+								<svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+								<svg class="icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+							</button>
+						</div>
+					</label>
+					<button class="button pill" type="submit">Register</button>
+
+					<div class="form-footer">
+						<p>Already Have an Account?</p>
+						<p><a href="../Login/auth.html">Login</a></p>
+					</div>
+				</form>
+
+				<div id="setupBox" class="success hidden">
+					<strong>Account created — pending approval</strong>
+					<p>An administrator has to approve your account before you can sign in. In the meantime, do you want to set up two-factor authentication?</p>
+					<a class="button pill" href="../2fa/setup.html">Set up 2FA</a>
+					<a class="fineprint" href="../Login/auth.html">Skip for now</a>
+				</div>
+			</div>
+
+			<div class="glow-panel" aria-hidden="true">
+				<div class="glow-text">
+					<strong>WELCOME!</strong>
+				</div>
+			</div>
+
+			<div class="sweep-bar" aria-hidden="true"><div class="sweep-face"></div></div>
+		</section>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const el = {
+			error: $('errorBox'),
+			form: $('registerForm'),
+			setupBox: $('setupBox'),
+		};
+
+		const ERROR_MESSAGES = {
+			invalid_user: 'Invalid username. Use 3-32 characters (letters, numbers, ".", "_", "-").',
+			weak_password: 'The password needs at least 8 characters.',
+			password_mismatch: 'The passwords do not match.',
+			user_exists: 'An account with that username already exists.',
+			default: 'Something went wrong. Try again.',
+		};
+
+		function showError(code) {
+			el.error.textContent = ERROR_MESSAGES[code] || ERROR_MESSAGES.default;
+			el.error.classList.add('show');
+		}
+
+		// Botão de mostrar/esconder password — funciona para qualquer campo com .toggle-password
+		document.querySelectorAll('.toggle-password').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const input = document.getElementById(btn.dataset.target);
+				const isHidden = input.type === 'password';
+				input.type = isHidden ? 'text' : 'password';
+				btn.setAttribute('aria-pressed', String(isHidden));
+				btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+			});
+		});
+
+		el.form.addEventListener('submit', async (ev) => {
+			ev.preventDefault();
+			el.error.classList.remove('show');
+
+			let res;
+			try {
+				const resp = await fetch('register.php', {
+					method: 'POST',
+					headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+					body: new FormData(el.form),
+				});
+				res = await resp.json();
+			} catch (err) {
+				showError('default');
+				return;
+			}
+
+			if (res.status === 'error') {
+				showError(res.error);
+				return;
+			}
+
+			el.form.classList.add('hidden');
+			el.setupBox.classList.remove('hidden');
+			el.setupBox.classList.add('show');
+		});
+	</script>
+</body>
+</html>

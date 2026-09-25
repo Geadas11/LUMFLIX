@@ -1,0 +1,354 @@
+<!--
+	[PAGINA-TEMPORADA] temporada.html
+	Episodios de uma temporada. Chega-se aqui pelo clique numa temporada,
+	na ficha da serie; tudo o que a pagina mostra no cabecalho vem no
+	endereco, porque aqui nao ha catalogo.
+
+	Disposicao: cartaz + informacao em cima, lista de episodios no meio
+	(e so ela que rola) e a faixa de temporadas encostada ao fundo.
+
+	O estilo vive em ../../catalogo.css, o mesmo das paginas de filmes e
+	series.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LumFlix | Season</title>
+	<link rel="stylesheet" href="../../../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="../../catalogo.css">
+</head>
+<body>
+	<header class="topbar is-stuck">
+		<span class="brand-logo">LUMFLIX</span>
+
+		<nav class="topnav">
+			<a href="../../filmes/filmes.html">Movies</a>
+			<a href="../series.html" aria-current="page">Series</a>
+			<a href="../../lista/lista.html">My list</a>
+			<a href="../../continuar_ver/ver.html">Continue watching</a>
+		</nav>
+
+		<div class="topbar-end">
+			<a class="avatar" id="avatar" href="../../conta/conta.html" aria-label="My account">·</a>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</div>
+	</header>
+
+	<main class="temporada-shell">
+		<a class="voltar" href="../series.html">← Back to series</a>
+
+		<!-- cartaz + informacao -->
+		<header class="serie-cabecalho">
+			<div class="serie-cartaz" id="cartaz">
+				<img class="serie-cartaz-img" id="cartazImg" alt="" hidden>
+				<span class="poster-mark" id="cartazMarca" aria-hidden="true"></span>
+			</div>
+
+			<div class="serie-info">
+				<h1 id="tituloSerie"></h1>
+				<p class="meta" id="metaSerie"></p>
+				<p class="sinopse" id="sinopseSerie"></p>
+				<div class="hero-actions">
+					<button class="button pill" type="button">▶ Play</button>
+					<button class="button pill ghost" type="button" id="listaBtn">+ My list</button>
+				</div>
+			</div>
+		</header>
+
+		<!-- unica zona que rola -->
+		<section class="episodios" id="episodios">
+			<h2 id="tituloTemporada"></h2>
+			<ol class="lista-episodios" id="listaEpisodios"></ol>
+		</section>
+
+		<!-- temporadas, encostadas ao fundo -->
+		<section class="temporada-picker">
+			<span class="seasons-label">Seasons</span>
+			<div class="seasons-track" id="seasonsTrack"></div>
+		</section>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const SESSAO = '../../../authentication_page/Shared/session.php';
+		const LOGIN = '../../../authentication_page/Login/auth.html';
+
+		/* Guarda de sessao, igual a das outras paginas: encaminha quem nao
+		   tem sessao, sem servir de protecao real ao conteudo. */
+		(async () => {
+			try {
+				const resp = await fetch(SESSAO, { credentials: 'same-origin' });
+				const res = await resp.json();
+				if (!res.authenticated) {
+					window.location.replace(LOGIN);
+					return;
+				}
+				$('avatar').textContent = (res.user || '?')[0].toUpperCase();
+			} catch (err) {
+				/* servidor em baixo: deixa ver a pagina na mesma */
+			}
+		})();
+
+		$('logout').addEventListener('click', async () => {
+			const body = new FormData();
+			body.append('action', 'logout');
+			try {
+				await fetch(SESSAO, { method: 'POST', credentials: 'same-origin', body });
+			} catch (err) { /* sai na mesma */ }
+			window.location.href = LOGIN;
+		});
+
+		function esc(v) {
+			return String(v ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+			}[c]));
+		}
+
+		/* Mesma funcao das paginas de catalogo, de proposito: e o que faz o
+		   cartaz daqui sair igual ao que o utilizador clicou la. */
+		function cores(titulo) {
+			let h = 0;
+			for (const ch of titulo) h = (h * 31 + ch.charCodeAt(0)) % 360;
+			const matiz = 18 + (h % 44);
+
+			return {
+				c1: `hsl(${matiz} ${44 + (h % 20)}% ${26 + (h % 12)}%)`,
+				c2: `hsl(${(matiz + 16) % 360} 40% 7%)`,
+				c3: `hsl(${(matiz + 8) % 360} 72% 62% / 0.5)`,
+			};
+		}
+
+		/* ---- o que veio no endereco -------------------------------------- */
+
+		const params = new URLSearchParams(window.location.search);
+		const serie = (params.get('serie') || '').trim();
+		const totalTemporadas = Math.max(1, Number(params.get('de')) || 1);
+		let temporada = Math.min(totalTemporadas, Math.max(1, Number(params.get('t')) || 1));
+
+		/* ---- episodios ---------------------------------------------------- */
+
+		/* Gerador com semente: a mesma serie e temporada dao sempre os
+		   mesmos episodios. Sem isto, cada visita mostrava uma lista
+		   diferente e a pagina parecia avariada. */
+		function semente(texto) {
+			let h = 2166136261;
+			for (const ch of texto) {
+				h ^= ch.charCodeAt(0);
+				h = Math.imul(h, 16777619);
+			}
+			return h >>> 0;
+		}
+
+		function gerador(estado) {
+			return function () {
+				estado = (estado + 0x6d2b79f5) >>> 0;
+				let t = estado;
+				t = Math.imul(t ^ (t >>> 15), t | 1);
+				t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+				return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+			};
+		}
+
+		const TITULOS = [
+			'The First Day', 'Closed Doors', 'Who Stays', 'The Call',
+			'Nothing to Declare', 'The Deal', 'After Hours', 'Still Waters',
+			'The Visit', 'No Answer', 'The Return', 'Line Busy',
+			'Unsettled Debts', 'The Promise', 'Final Warning', 'Wasteland',
+			'Two Versions', 'What Was Left', 'Full House', 'The Goodbye',
+			'Marks on the Wall', 'The Shortcut', 'Testimony', 'Late Afternoon',
+		];
+
+		function episodiosDe(nome, numero) {
+			const rnd = gerador(semente(nome + '|' + numero));
+			const quantos = 6 + Math.floor(rnd() * 5);   /* 6 a 10 */
+
+			/* baralha uma copia dos titulos, para nao repetir dentro da
+			   mesma temporada */
+			const pool = TITULOS.slice();
+			for (let i = pool.length - 1; i > 0; i--) {
+				const j = Math.floor(rnd() * (i + 1));
+				[pool[i], pool[j]] = [pool[j], pool[i]];
+			}
+
+			return Array.from({ length: quantos }, (_, n) => ({
+				numero: n + 1,
+				titulo: pool[n % pool.length],
+				minutos: 38 + Math.floor(rnd() * 21),   /* 38 a 58 */
+			}));
+		}
+
+		/* ---- desenho ------------------------------------------------------ */
+
+		function pintarCabecalho() {
+			const { c1, c2, c3 } = cores(serie);
+			const cartaz = $('cartaz');
+
+			cartaz.style.setProperty('--c1', c1);
+			cartaz.style.setProperty('--c2', c2);
+			cartaz.style.setProperty('--c3', c3);
+			$('cartazMarca').textContent = serie[0];
+
+			/* o cartaz vem no endereco, ja validado pela pagina das series */
+			const arte = params.get('cartaz') || '';
+			if (/^https:\/\/image\.tmdb\.org\/t\/p\//.test(arte)) {
+				$('cartazImg').src = arte;
+				$('cartazImg').hidden = false;
+				cartaz.classList.add('tem-arte');
+			}
+
+			$('tituloSerie').textContent = serie;
+
+			const partes = [
+				params.get('ano'),
+				`${totalTemporadas} ${totalTemporadas === 1 ? 'season' : 'seasons'}`,
+				/* a classificacao vem ja escrita ("TV-MA", "16"), sem "+" */
+				params.get('idade') || null,
+				params.get('cat'),
+			].filter(Boolean);
+
+			$('metaSerie').textContent = partes.join(' · ');
+			$('sinopseSerie').textContent = params.get('sin') || '';
+		}
+
+		function pintarTemporadas() {
+			$('seasonsTrack').innerHTML = Array.from({ length: totalTemporadas }, (_, n) => `
+				<button type="button" class="season" data-temporada="${n + 1}"
+					aria-pressed="${n + 1 === temporada}">${n + 1}</button>`).join('');
+		}
+
+		function pintarEpisodios() {
+			const lista = episodiosDe(serie, temporada);
+
+			$('tituloTemporada').textContent =
+				`Season ${temporada} · ${lista.length} episodes`;
+
+			$('listaEpisodios').innerHTML = lista.map((ep) => `
+				<li class="episodio">
+					<span class="ep-numero">${ep.numero}</span>
+					<div class="ep-corpo">
+						<h3>${esc(ep.titulo)}</h3>
+						<p class="ep-meta">T${temporada} E${ep.numero} · ${ep.minutos} min</p>
+					</div>
+					<button type="button" class="ep-play" aria-label="Play episode ${ep.numero}">▶</button>
+				</li>`).join('');
+
+			/* volta ao topo da lista ao trocar de temporada */
+			$('episodios').scrollTop = 0;
+		}
+
+		if (!serie) {
+			$('tituloSerie').textContent = 'Series not found';
+			$('metaSerie').textContent = 'The link does not say which series this is.';
+			$('listaEpisodios').innerHTML =
+				'<li class="row-empty">Go back to series and pick a season.</li>';
+		} else {
+			pintarCabecalho();
+			pintarTemporadas();
+			pintarEpisodios();
+		}
+
+		/* ---- a minha lista ------------------------------------------------ */
+
+		/**
+		 * O botao guarda a serie na lista da conta. Tudo o que o servidor
+		 * precisa ja veio no endereco, por isso nao ha aqui catalogo nenhum
+		 * a consultar.
+		 */
+		const LISTA_API = '../../lista/lista.php';
+		let listaToken = '';
+		let naLista = false;
+
+		function itemDaSerie() {
+			return {
+				titulo: serie,
+				categoria: params.get('cat') || '',
+				ano: params.get('ano') || 0,
+				duracao: `${totalTemporadas} ${totalTemporadas === 1 ? 'season' : 'seasons'}`,
+				idade: params.get('idade') || '',
+				sinopse: params.get('sin') || '',
+				cartaz: params.get('cartaz') || '',
+			};
+		}
+
+		async function chamarLista(action, campos) {
+			const escrita = campos !== undefined;
+			const url = escrita ? LISTA_API : `${LISTA_API}?action=${encodeURIComponent(action)}`;
+			const opcoes = {
+				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			};
+
+			if (escrita) {
+				const corpo = new FormData();
+				corpo.append('action', action);
+				corpo.append('token', listaToken);
+				Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+				opcoes.method = 'POST';
+				opcoes.body = corpo;
+			}
+
+			const resp = await fetch(url, opcoes);
+			return resp.json();
+		}
+
+		function pintarBotaoLista(itens) {
+			naLista = (itens || []).some((x) => x.titulo === serie);
+			$('listaBtn').textContent = naLista ? '✓ In my list' : '+ My list';
+			$('listaBtn').classList.toggle('na-lista', naLista);
+		}
+
+		(async () => {
+			if (!serie) return;
+
+			try {
+				const res = await chamarLista('listar');
+				if (res.status === 'ok') {
+					listaToken = res.token;
+					pintarBotaoLista(res.itens);
+				}
+			} catch (err) {
+				/* sem servidor o botao fica inerte, mas a pagina abre */
+			}
+		})();
+
+		$('listaBtn').addEventListener('click', async () => {
+			if (!listaToken) return;
+
+			$('listaBtn').disabled = true;
+
+			let res;
+			try {
+				res = await chamarLista(naLista ? 'tirar' : 'juntar',
+					naLista ? { titulo: serie } : itemDaSerie());
+			} catch (err) {
+				$('listaBtn').disabled = false;
+				return;
+			}
+
+			if (res.status === 'ok') pintarBotaoLista(res.itens);
+			$('listaBtn').disabled = false;
+		});
+
+		/* trocar de temporada sem sair da pagina */
+		document.addEventListener('click', (ev) => {
+			const botao = ev.target.closest('.season');
+			if (!botao) return;
+
+			temporada = Number(botao.dataset.temporada);
+
+			$('seasonsTrack').querySelectorAll('.season').forEach((b) => {
+				b.setAttribute('aria-pressed', String(b === botao));
+			});
+			pintarEpisodios();
+
+			/* mantem o endereco a par, para recarregar ou partilhar dar a
+			   mesma temporada */
+			const url = new URL(window.location.href);
+			url.searchParams.set('t', temporada);
+			history.replaceState(null, '', url);
+		});
+	</script>
+</body>
+</html>

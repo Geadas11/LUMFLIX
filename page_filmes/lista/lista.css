@@ -1,0 +1,270 @@
+/**
+ * [ESTILO-LISTA] lista.css
+ * So o que e proprio da pagina "My list". A barra de topo, a paleta e os
+ * botoes vem do ../catalogo.css e do style.css.
+ */
+
+.lista-shell {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 112px var(--gutter) 70px;
+}
+
+.lista-topo {
+	margin-bottom: 28px;
+}
+
+.lista-topo h1 {
+	margin: 0 0 6px;
+	font-size: clamp(1.8rem, 4vw, 2.4rem);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.lista-topo .nota {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.92rem;
+}
+
+/* ---- grelha ---------------------------------------------------------- */
+
+/* auto-fill com minmax: reorganiza-se sozinha, sem um numero de colunas
+   por cada tamanho de ecra */
+.lista-grelha {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+	gap: 22px;
+}
+
+.guardado {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid rgba(192, 138, 30, 0.16);
+	border-radius: 12px;
+	overflow: hidden;
+	background: rgba(22, 17, 8, 0.6);
+	transition: border-color 200ms ease, transform 240ms var(--curva);
+}
+
+.guardado:hover {
+	border-color: rgba(224, 179, 82, 0.45);
+	transform: translateY(-4px);
+}
+
+/* ---- arte ------------------------------------------------------------ */
+
+.guardado-arte {
+	position: relative;
+	aspect-ratio: 3 / 2;
+	background:
+		radial-gradient(70% 80% at 22% 10%, var(--c3), transparent 66%),
+		radial-gradient(90% 90% at 88% 96%, rgba(0, 0, 0, 0.6), transparent 60%),
+		linear-gradient(150deg, var(--c1) 0%, var(--c2) 100%);
+}
+
+/* cartaz da TMDB, por baixo das camadas de textura */
+.guardado-img {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	/* a imagem e mais alta do que a caixa: corta-se mais por baixo, que
+	   e onde costuma estar o menos importante */
+	object-position: center 28%;
+}
+
+.guardado-arte.tem-arte .guardado-marca {
+	display: none;
+}
+
+.guardado-arte.tem-arte::before {
+	opacity: 0.24;
+}
+
+.guardado-arte::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-image:
+		linear-gradient(118deg, transparent 34%, rgba(255, 244, 214, 0.16) 48%, transparent 60%),
+		var(--grao);
+	background-size: auto, 140px 140px;
+	opacity: 0.5;
+	mix-blend-mode: soft-light;
+}
+
+.guardado-marca {
+	position: absolute;
+	/* acima da camada de textura, como estava antes de ela ganhar
+	   z-index para poder ficar por cima do cartaz */
+	z-index: 2;
+	top: -14px;
+	right: 8px;
+	font-size: 4.8rem;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.06em;
+	color: rgba(255, 255, 255, 0.1);
+	pointer-events: none;
+}
+
+.guardado-tirar {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 2;
+	width: 28px;
+	height: 28px;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(10, 7, 4, 0.7);
+	color: var(--muted);
+	font-size: 1.1rem;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 200ms ease, color 200ms ease, background 200ms ease;
+}
+
+.guardado:hover .guardado-tirar,
+.guardado-tirar:focus-visible {
+	opacity: 1;
+}
+
+.guardado-tirar:hover {
+	color: #ffd5d8;
+	background: rgba(120, 30, 30, 0.8);
+}
+
+.guardado-tirar:disabled {
+	opacity: 0.4;
+	cursor: wait;
+}
+
+/* ---- texto ------------------------------------------------------------ */
+
+.guardado-corpo {
+	flex: 1 1 auto;
+	padding: 14px 16px 16px;
+}
+
+.guardado-corpo h3 {
+	margin: 0 0 4px;
+	font-size: 0.98rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.guardado-meta {
+	margin: 0 0 8px;
+	color: var(--neon);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+.guardado-sinopse {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.84rem;
+	line-height: 1.5;
+	/* tres linhas chegam: o cartao serve para reconhecer, nao para ler */
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* ---- lista vazia ------------------------------------------------------- */
+
+.lista-vazia {
+	padding: 60px 30px;
+	border: 1px dashed rgba(192, 138, 30, 0.3);
+	border-radius: 16px;
+	text-align: center;
+	background: rgba(22, 17, 8, 0.4);
+}
+
+.lista-vazia[hidden] {
+	display: none;
+}
+
+.lista-vazia-marca {
+	width: 72px;
+	height: 72px;
+	margin: 0 auto 20px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid rgba(224, 179, 82, 0.35);
+	background: rgba(224, 179, 82, 0.08);
+	color: var(--neon);
+	font-size: 2rem;
+	font-weight: 800;
+}
+
+.lista-vazia h2 {
+	margin: 0 0 8px;
+	font-size: 1.3rem;
+	font-weight: 800;
+}
+
+.lista-vazia p {
+	margin: 0 0 24px;
+	color: var(--muted);
+	font-size: 0.95rem;
+}
+
+.lista-vazia strong {
+	color: var(--text);
+}
+
+.lista-vazia .hero-actions {
+	justify-content: center;
+}
+
+.lista-vazia .button {
+	text-decoration: none;
+}
+
+.lista-vazia .button:hover {
+	text-decoration: none;
+}
+
+/* ---- responsivo ---------------------------------------------------------- */
+
+@media (max-width: 560px) {
+	.lista-shell {
+		/* a barra de topo tem duas linhas neste tamanho */
+		padding-top: 132px;
+	}
+
+	.lista-grelha {
+		grid-template-columns: 1fr;
+	}
+
+	.lista-vazia {
+		padding: 44px 20px;
+	}
+}
+
+/* o cartao inteiro abre a ficha */
+.guardado {
+	cursor: pointer;
+}
+
+.guardado:focus-visible {
+	outline: 2px solid var(--neon);
+	outline-offset: 3px;
+}
+
+/* o x fica por cima e nao herda o cursor do cartao */
+.guardado-tirar {
+	cursor: pointer;
+}

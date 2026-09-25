@@ -1,0 +1,170 @@
+<!--
+	[PAGINA-2FA] setup.html
+	Gera automaticamente (via setup.php) e mostra o secret 2FA para a
+	conta criada no passo anterior (register.html). Passo opcional.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Set up 2FA | LumFlix</title>
+	<link rel="stylesheet" href="../Shared/style.css">
+	<link rel="stylesheet" href="setup.css">
+	<script src="../Shared/nav.js"></script>
+	<!-- Desenha o QR no proprio browser. O secret nunca e enviado para
+	     lado nenhum: so a biblioteca e que vem da rede. -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+	<main class="shell split-shell">
+		<section class="split-card art-right" aria-labelledby="setup-title">
+			<div class="form-panel">
+				<h1 id="setup-title">Setup 2FA</h1>
+				<p class="subtitle" id="subtitleText">Generating your security code...</p>
+
+				<div id="errorBox" class="alert" role="alert"></div>
+
+				<div id="setupBox" class="success hidden">
+					<strong>Code generated!</strong>
+
+					<!-- As duas vistas partilham o mesmo palco, de altura fixa,
+					     para trocar entre elas nao mexer na altura do cartao. -->
+					<div class="secret-stage">
+						<div id="qrView" class="qr-view">
+							<div id="qrTarget"></div>
+						</div>
+						<p class="secret-display hidden" id="manualView"><code id="secretText"></code></p>
+					</div>
+
+					<div class="secret-toggle" role="group" aria-label="Code format">
+						<button type="button" id="btnQr" class="toggle-view is-active" aria-pressed="true">Show QR code</button>
+						<button type="button" id="btnManual" class="toggle-view" aria-pressed="false">Show key</button>
+					</div>
+					<a class="button pill" href="../Login/auth.html">Go to sign in</a>
+				</div>
+			</div>
+
+			<div class="glow-panel" aria-hidden="true">
+				<div class="glow-text">
+					<strong>ALMOST</strong>
+					<strong>DONE</strong>
+				</div>
+			</div>
+
+			<div class="sweep-bar" aria-hidden="true"><div class="sweep-face"></div></div>
+		</section>
+	</main>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const el = {
+			subtitle: $('subtitleText'),
+			error: $('errorBox'),
+			setupBox: $('setupBox'),
+			secretText: $('secretText'),
+			qrView: $('qrView'),
+			qrTarget: $('qrTarget'),
+			manualView: $('manualView'),
+			btnQr: $('btnQr'),
+			btnManual: $('btnManual'),
+		};
+
+		/* URI otpauth:// vindo do setup.php; fica aqui a espera de o QR ser
+		   pedido, para nao gastar tempo a desenhar o que talvez nao se veja */
+		let otpauthUri = '';
+		let qrDrawn = false;
+
+		const ERROR_MESSAGES = {
+			no_pending_user: 'No account is waiting to be set up. Create an account first.',
+			user_not_found: 'That account could not be found.',
+			qr_unavailable: 'The QR code could not be drawn. Use the key below.',
+			default: 'Something went wrong. Try again.',
+		};
+
+		function showError(code) {
+			el.subtitle.classList.add('hidden');
+			el.error.textContent = ERROR_MESSAGES[code] || ERROR_MESSAGES.default;
+			el.error.classList.add('show');
+		}
+
+		/* Desenha o QR uma unica vez. Devolve false se a biblioteca nao
+		   tiver carregado (sem rede, CDN bloqueado) — nesse caso ficamos
+		   no codigo manual, que funciona sempre. */
+		function drawQr() {
+			if (qrDrawn) return true;
+			if (!otpauthUri || typeof QRCode === 'undefined') return false;
+
+			new QRCode(el.qrTarget, {
+				text: otpauthUri,
+				width: 124,
+				height: 124,
+				colorDark: '#0d0a06',
+				colorLight: '#f5e9d2',
+				/* nivel L: mantem o QR em 33 modulos, o que a este tamanho
+				   da modulos grandes que se leem bem. Num ecra nao ha risco
+				   de dano fisico que justifique correcao mais alta. */
+				correctLevel: QRCode.CorrectLevel.L,
+			});
+			qrDrawn = true;
+			return true;
+		}
+
+		/* Devolve false se o QR nao pode ser desenhado, para quem chama
+		   decidir: no arranque recua para a chave sem dizer nada, num
+		   clique e que faz sentido explicar porque nao deu. */
+		function showView(wantQr) {
+			if (wantQr && !drawQr()) return false;
+
+			el.error.classList.remove('show');
+			el.qrView.classList.toggle('hidden', !wantQr);
+			el.manualView.classList.toggle('hidden', wantQr);
+
+			el.btnQr.classList.toggle('is-active', wantQr);
+			el.btnManual.classList.toggle('is-active', !wantQr);
+			el.btnQr.setAttribute('aria-pressed', String(wantQr));
+			el.btnManual.setAttribute('aria-pressed', String(!wantQr));
+			return true;
+		}
+
+		el.btnQr.addEventListener('click', () => {
+			if (!showView(true)) showError('qr_unavailable');
+		});
+		el.btnManual.addEventListener('click', () => showView(false));
+
+		async function generateSecret() {
+			let res;
+			try {
+				const resp = await fetch('setup.php', {
+					method: 'POST',
+					headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				});
+				res = await resp.json();
+			} catch (err) {
+				showError('default');
+				return;
+			}
+
+			if (res.status === 'error') {
+				showError(res.error);
+				return;
+			}
+
+			el.subtitle.classList.add('hidden');
+			el.setupBox.classList.remove('hidden');
+			el.setupBox.classList.add('show');
+			el.secretText.textContent = res.totp_secret.match(/.{1,3}/g).join(' ');
+
+			otpauthUri = res.otpauth_uri || '';
+			/* sem URI nao ha QR possivel: esconde o botao em vez de o
+			   deixar a dar erro quando se carrega nele */
+			el.btnQr.classList.toggle('hidden', !otpauthUri);
+
+			/* o QR e a vista de partida; so se nao der e que fica a chave */
+			if (!showView(true)) showView(false);
+		}
+
+		generateSecret();
+	</script>
+</body>
+</html>

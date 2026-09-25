@@ -1,0 +1,363 @@
+<!--
+	[PAGINA-LISTA] lista.html
+	A lista pessoal. Vem do servidor (lista.php), ligada a conta, por isso
+	acompanha o utilizador em qualquer dispositivo.
+
+	A barra de topo e a paleta vem do ../catalogo.css; so o que e proprio
+	desta pagina esta em lista.css.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LumFlix | My list</title>
+	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
+	<link rel="stylesheet" href="../catalogo.css">
+	<link rel="stylesheet" href="lista.css">
+</head>
+<body>
+	<header class="topbar is-stuck">
+		<span class="brand-logo">LUMFLIX</span>
+
+		<nav class="topnav">
+			<a href="../filmes/filmes.html">Movies</a>
+			<a href="../series/series.html">Series</a>
+			<a href="lista.html" aria-current="page">My list</a>
+			<a href="../continuar_ver/ver.html">Continue watching</a>
+		</nav>
+
+		<div class="topbar-end">
+			<a class="avatar" id="avatar" href="../conta/conta.html" aria-label="My account">·</a>
+			<button type="button" class="logout" id="logout">Sign out</button>
+		</div>
+	</header>
+
+	<main class="lista-shell">
+		<header class="lista-topo">
+			<div>
+				<h1>My list</h1>
+				<p class="nota" id="resumo">…</p>
+			</div>
+		</header>
+
+		<div class="lista-grelha" id="grelha"></div>
+
+		<div class="lista-vazia" id="vazia" hidden>
+			<div class="lista-vazia-marca" aria-hidden="true">+</div>
+			<h2>Your list is empty</h2>
+			<p>Open any title and press <strong>+ My list</strong> to keep it here.</p>
+			<div class="hero-actions">
+				<a class="button pill" href="../filmes/filmes.html">Browse movies</a>
+				<a class="button pill ghost" href="../series/series.html">Browse series</a>
+			</div>
+		</div>
+	</main>
+
+	<!-- Ficha, preenchida ao carregar num cartao. Mesma marcacao das
+	     paginas de catalogo, para o estilo do catalogo.css servir. -->
+	<div class="sheet" id="sheet" hidden>
+		<div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+			<button type="button" class="sheet-close" id="sheetClose" aria-label="Close">&times;</button>
+			<div class="sheet-poster" id="sheetPoster"><span></span></div>
+			<div class="sheet-body">
+				<h2 id="sheetTitle"></h2>
+				<p class="meta" id="sheetMeta"></p>
+				<p class="synopsis" id="sheetSynopsis"></p>
+				<div class="hero-actions">
+					<button class="button pill" type="button" id="sheetPlay">▶ Play</button>
+					<button class="button pill ghost na-lista" type="button" id="sheetLista">✓ In my list</button>
+				</div>
+
+				<!-- so nas series -->
+				<div class="sheet-seasons" id="sheetSeasons" hidden>
+					<span class="seasons-label">Seasons</span>
+					<div class="seasons-track" id="seasonsTrack"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const API = 'lista.php';
+		const SESSAO = '../../authentication_page/Shared/session.php';
+		const LOGIN = '../../authentication_page/Login/auth.html';
+
+		let token = '';
+
+		(async () => {
+			try {
+				const resp = await fetch(SESSAO, { credentials: 'same-origin' });
+				const res = await resp.json();
+				if (!res.authenticated) {
+					window.location.replace(LOGIN);
+					return;
+				}
+				$('avatar').textContent = (res.user || '?')[0].toUpperCase();
+			} catch (err) {
+				/* servidor em baixo: deixa ver a pagina na mesma */
+			}
+		})();
+
+		$('logout').addEventListener('click', async () => {
+			const corpo = new FormData();
+			corpo.append('action', 'logout');
+			try {
+				await fetch(SESSAO, { method: 'POST', credentials: 'same-origin', body: corpo });
+			} catch (err) { /* sai na mesma */ }
+			window.location.href = LOGIN;
+		});
+
+		function esc(v) {
+			return String(v ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+			}[c]));
+		}
+
+		/* Mesma funcao das paginas de catalogo, de proposito: e o que faz o
+		   cartaz daqui sair igual ao que se guardou la. */
+		function cores(titulo) {
+			let h = 0;
+			for (const ch of titulo) h = (h * 31 + ch.charCodeAt(0)) % 360;
+			const matiz = 18 + (h % 44);
+
+			return {
+				c1: `hsl(${matiz} ${44 + (h % 20)}% ${26 + (h % 12)}%)`,
+				c2: `hsl(${(matiz + 16) % 360} 40% 7%)`,
+				c3: `hsl(${(matiz + 8) % 360} 72% 62% / 0.5)`,
+			};
+		}
+
+		/* ---- dados -------------------------------------------------------- */
+
+		async function chamar(action, campos) {
+			const escrita = campos !== undefined;
+			const url = escrita ? API : `${API}?action=${encodeURIComponent(action)}`;
+			const opcoes = {
+				headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+			};
+
+			if (escrita) {
+				const corpo = new FormData();
+				corpo.append('action', action);
+				corpo.append('token', token);
+				Object.entries(campos).forEach(([k, v]) => corpo.append(k, v));
+				opcoes.method = 'POST';
+				opcoes.body = corpo;
+			}
+
+			const resp = await fetch(url, opcoes);
+			return resp.json();
+		}
+
+		/* ---- desenho ------------------------------------------------------ */
+
+		function cartao(item) {
+			const { c1, c2, c3 } = cores(item.titulo);
+			const meta = [item.ano, item.duracao, item.idade ? item.idade + '+' : null]
+				.filter(Boolean).join(' · ');
+
+			/* o cartaz e o mesmo que o catalogo mostra; sem ele fica o
+			   degrade do tema, como acontecia antes de haver imagens */
+			const arte = /^https:\/\/image\.tmdb\.org\/t\/p\//.test(item.cartaz || '');
+
+			return `
+				<article class="guardado" style="--c1:${c1};--c2:${c2};--c3:${c3}"
+					data-abrir="${esc(item.titulo)}" tabindex="0" role="button">
+					<div class="guardado-arte${arte ? ' tem-arte' : ''}">
+						${arte ? `<img class="guardado-img" src="${esc(item.cartaz)}" alt=""
+							loading="lazy"
+							onerror="this.closest('.guardado-arte').classList.remove('tem-arte'); this.remove();">` : ''}
+						<span class="guardado-marca" aria-hidden="true">${esc(item.titulo[0])}</span>
+						<button type="button" class="guardado-tirar" data-tirar="${esc(item.titulo)}"
+							aria-label="Remove ${esc(item.titulo)} from my list">&times;</button>
+					</div>
+
+					<div class="guardado-corpo">
+						<h3>${esc(item.titulo)}</h3>
+						<p class="guardado-meta">${esc(meta)}</p>
+						<p class="guardado-sinopse">${esc(item.sinopse || '')}</p>
+					</div>
+				</article>`;
+		}
+
+		/* parametro com nome proprio: chamar-lhe "itens" sombreava a
+		   variavel de estado com o mesmo nome e era facil enganar-se */
+		function pintar(lista) {
+			$('vazia').hidden = lista.length > 0;
+
+			$('resumo').textContent = lista.length
+				? `${lista.length} ${lista.length === 1 ? 'title' : 'titles'} saved`
+				: 'Nothing saved yet.';
+
+			$('grelha').innerHTML = lista.map(cartao).join('');
+		}
+
+		async function carregar() {
+			let res;
+			try {
+				res = await chamar('listar');
+			} catch (err) {
+				pintar([]);
+				return;
+			}
+
+			if (res.status !== 'ok') {
+				window.location.replace(LOGIN);
+				return;
+			}
+
+			token = res.token;
+			pintar(itens = res.itens || []);
+		}
+
+		/* ---- ficha --------------------------------------------------------- */
+
+		const CONTINUAR_API = '../continuar_ver/ver.php';
+		let itens = [];
+		let aberto = null;
+
+		function abrirFicha(item) {
+			aberto = item;
+			const { c1, c2, c3 } = cores(item.titulo);
+
+			$('sheetTitle').textContent = item.titulo;
+			$('sheetMeta').textContent = [item.ano, item.duracao,
+				item.idade ? item.idade + '+' : null, item.categoria]
+				.filter(Boolean).join(' · ');
+			$('sheetSynopsis').textContent = item.sinopse || '';
+
+			$('sheetPoster').style.setProperty('--c1', c1);
+			$('sheetPoster').style.setProperty('--c2', c2);
+			$('sheetPoster').style.setProperty('--c3', c3);
+			$('sheetPoster').querySelector('span').textContent = item.titulo[0];
+
+			/* so as series tem temporadas; sai do campo da duracao, como
+			   nas paginas de catalogo */
+			const achou = /^(\d+)\s*season/i.exec(item.duracao || '');
+			if (achou) {
+				const total = Number(achou[1]);
+				$('seasonsTrack').innerHTML = Array.from({ length: total }, (_, n) => `
+					<button type="button" class="season" data-temporada="${n + 1}"
+						aria-pressed="${n === 0}">${n + 1}</button>`).join('');
+				$('sheetSeasons').hidden = false;
+			} else {
+				$('sheetSeasons').hidden = true;
+			}
+
+			$('sheet').hidden = false;
+		}
+
+		function fecharFicha() {
+			$('sheet').hidden = true;
+			aberto = null;
+		}
+
+		$('sheetClose').addEventListener('click', fecharFicha);
+
+		$('sheet').addEventListener('click', (ev) => {
+			if (ev.target === $('sheet')) fecharFicha();
+		});
+
+		document.addEventListener('keydown', (ev) => {
+			if (ev.key === 'Escape') fecharFicha();
+		});
+
+		/* Play: regista no "Continue watching" e vai para la, como nas
+		   paginas de catalogo */
+		$('sheetPlay').addEventListener('click', async () => {
+			if (!aberto) return;
+
+			const corpo = new FormData();
+			corpo.append('action', 'registar');
+			corpo.append('token', token);
+			corpo.append('titulo', aberto.titulo);
+			corpo.append('categoria', aberto.categoria || '');
+			corpo.append('extra', `${aberto.ano || ''} · ${aberto.duracao || ''}`);
+
+			try {
+				await fetch(CONTINUAR_API, {
+					method: 'POST',
+					headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+					credentials: 'same-origin',
+					body: corpo,
+				});
+			} catch (err) { /* segue na mesma */ }
+
+			window.location.href = '../continuar_ver/ver.html';
+		});
+
+		/* aqui o botao so pode tirar: se esta na pagina, ja esta na lista */
+		$('sheetLista').addEventListener('click', async () => {
+			if (!aberto) return;
+
+			const res = await chamar('tirar', { titulo: aberto.titulo });
+			if (res.status === 'ok') {
+				pintar(itens = res.itens || []);
+				fecharFicha();
+			}
+		});
+
+		/* temporada leva a pagina dos episodios */
+		$('seasonsTrack').addEventListener('click', (ev) => {
+			const botao = ev.target.closest('.season');
+			if (!botao || !aberto) return;
+
+			const destino = new URL('../series/series_temporada.html/temporada.html', window.location.href);
+			destino.searchParams.set('serie', aberto.titulo);
+			destino.searchParams.set('t', botao.dataset.temporada);
+			destino.searchParams.set('de', $('seasonsTrack').querySelectorAll('.season').length);
+			destino.searchParams.set('ano', aberto.ano || '');
+			destino.searchParams.set('idade', aberto.idade || '');
+			destino.searchParams.set('cat', aberto.categoria || '');
+			destino.searchParams.set('sin', aberto.sinopse || '');
+			window.location.href = destino.href;
+		});
+
+		/* ---- interacao ---------------------------------------------------- */
+
+		document.addEventListener('click', async (ev) => {
+			/* o x tem de ser visto antes do cartao, senao tirar abria a ficha */
+			const cartaoAberto = ev.target.closest('[data-abrir]');
+			const botao = ev.target.closest('[data-tirar]');
+
+			if (!botao) {
+				if (cartaoAberto) {
+					const item = itens.find((x) => x.titulo === cartaoAberto.dataset.abrir);
+					if (item) abrirFicha(item);
+				}
+				return;
+			}
+
+			botao.disabled = true;
+
+			let res;
+			try {
+				res = await chamar('tirar', { titulo: botao.dataset.tirar });
+			} catch (err) {
+				botao.disabled = false;
+				return;
+			}
+
+			if (res.status === 'ok') pintar(itens = res.itens || []);
+			else botao.disabled = false;
+		});
+
+		/* teclado: Enter ou espaco abrem o cartao com foco */
+		document.addEventListener('keydown', (ev) => {
+			if (ev.key !== 'Enter' && ev.key !== ' ') return;
+
+			const cartao = ev.target.closest && ev.target.closest('[data-abrir]');
+			if (!cartao) return;
+
+			ev.preventDefault();
+			const item = itens.find((x) => x.titulo === cartao.dataset.abrir);
+			if (item) abrirFicha(item);
+		});
+
+		carregar();
+	</script>
+</body>
+</html>

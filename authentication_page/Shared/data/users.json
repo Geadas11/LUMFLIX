@@ -1,0 +1,53 @@
+{
+    "Teste": {
+        "password_hash": "$2y$10$VzXB9QqpcP5uMFC1vmNve.8DXM5GJQ1ZcQ3SDL2rVl5pzzxNf87Xe",
+        "totp_secret": null,
+        "created_at": "2026-09-24T15:03:05+00:00",
+        "status": "approved",
+        "reviewed_at": "2026-09-24T15:03:23+00:00",
+        "reviewed_by": "admin",
+        "continuar": [
+            {
+                "titulo": "His Girl Friday",
+                "categoria": "Comedy",
+                "extra": "1940 \u00b7 \u2605 7.4",
+                "arte": "https://image.tmdb.org/t/p/w1280/ihoQaiMFAz4YCTAaSIsQjRknsNH.jpg",
+                "progresso": 12,
+                "visto_em": "2026-09-24T17:40:50+00:00"
+            },
+            {
+                "titulo": "After Impact",
+                "categoria": "Sci-Fi",
+                "extra": "2026 \u00b7 1h 35m \u00b7 NR",
+                "arte": "https://image.tmdb.org/t/p/w1280/k22XyPbce7zvzzf5OnT4uaY8ZD1.jpg",
+                "progresso": 0,
+                "visto_em": "2026-09-24T17:32:37+00:00"
+            },
+            {
+                "titulo": "Moana",
+                "categoria": "Family",
+                "extra": "2026 \u00b7 1h 55m \u00b7 M/6",
+                "arte": "https://image.tmdb.org/t/p/w1280/c6BPbkO5Npt1OdwttAxCFo06wtH.jpg",
+                "progresso": 0,
+                "visto_em": "2026-09-24T17:31:39+00:00"
+            },
+            {
+                "titulo": "Spider-Man: Brand New Day",
+                "categoria": "Sci-Fi",
+                "extra": "2026 \u00b7 2h 25m \u00b7 PG-13",
+                "arte": "https://image.tmdb.org/t/p/w1280/qeQJx07rK2xm8SD2sJxFKhE7gs0.jpg",
+                "progresso": 0,
+                "visto_em": "2026-09-24T17:31:31+00:00"
+            }
+        ]
+    },
+    "Carlos": {
+        "password_hash": "$2y$10$250DDO65Vbg0wQtMvwXeNORzCgSYt8CrrZy/kixV9tjHIHJFncOei",
+        "totp_secret": null,
+        "created_at": "2026-09-24T17:33:14+00:00",
+        "status": "approved",
+        "reviewed_at": "2026-09-24T17:33:54+00:00",
+        "reviewed_by": "admin",
+        "continuar": []
+    }
+}

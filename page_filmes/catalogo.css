@@ -1,0 +1,1721 @@
+/**
+ * [ESTILO-FILMES] filmes.css
+ * Pagina de catalogo. Assenta no style.css da autenticacao: herda dali a
+ * paleta dourada, o fundo e o aspeto dos botoes, e acrescenta so o que e
+ * proprio desta pagina — barra de topo, destaque e carrosseis.
+ *
+ * Sobre os cartazes: nao ha imagens, por isso a arte e construida em
+ * camadas (dois focos de luz, um brilho diagonal, grao, e o titulo
+ * composto por cima). As cores de cada filme vem do JS, derivadas do
+ * titulo, para nao haver dois cartazes iguais.
+ */
+
+:root {
+	/* Grao em SVG, reutilizado no destaque e nos cartazes. E o que tira o
+	   ar chapado aos degrades — sem isto um fundo feito em CSS le-se logo
+	   como CSS. */
+	--grao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E");
+	--gutter: 52px;
+	--curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- barra de topo -------------------------------------------------- */
+
+.topbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	gap: 32px;
+	padding: 18px var(--gutter);
+	/* arranca como um veu escuro sobre o destaque e ganha corpo ao rolar */
+	background: linear-gradient(to bottom, rgba(6, 4, 2, 0.8), transparent);
+	border-bottom: 1px solid transparent;
+	transition: background 260ms ease, border-color 260ms ease, padding 260ms ease;
+}
+
+.topbar.is-stuck {
+	padding-top: 12px;
+	padding-bottom: 12px;
+	background: rgba(9, 6, 3, 0.86);
+	border-bottom-color: rgba(192, 138, 30, 0.22);
+	backdrop-filter: blur(14px) saturate(140%);
+}
+
+.brand-logo {
+	font-size: 1.45rem;
+	font-weight: 800;
+	letter-spacing: 0.22em;
+	white-space: nowrap;
+	/* degrade no proprio texto: o dourado deixa de ser uma cor chapada */
+	background: linear-gradient(105deg, #fff3d4 0%, var(--neon) 45%, #a8761a 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.topnav {
+	display: flex;
+	gap: 24px;
+	flex-wrap: wrap;
+}
+
+.topnav a {
+	position: relative;
+	padding-bottom: 4px;
+	color: rgba(245, 233, 210, 0.6);
+	font-size: 0.9rem;
+	transition: color 160ms ease;
+}
+
+/* sublinhado que cresce a partir da esquerda, em vez de acender de golpe */
+.topnav a::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1.5px;
+	background: var(--neon);
+	box-shadow: 0 0 8px rgba(224, 179, 82, 0.8);
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 240ms var(--curva);
+}
+
+.topnav a:hover {
+	color: var(--text);
+	text-decoration: none;
+}
+
+.topnav a:hover::after,
+.topnav a[aria-current="page"]::after {
+	transform: scaleX(1);
+}
+
+.topnav a[aria-current="page"] {
+	color: var(--text);
+	font-weight: 700;
+}
+
+.topbar-end {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+/* o style.css estiliza todos os input: aqui a pesquisa e mais discreta */
+.search {
+	width: 200px;
+	padding: 9px 16px;
+	border: 1px solid rgba(200, 168, 100, 0.2);
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.42);
+	color: var(--text);
+	font-size: 0.86rem;
+	transition: width 280ms var(--curva), border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.search::placeholder {
+	color: rgba(155, 138, 99, 0.8);
+}
+
+.search:focus {
+	width: 250px;
+	border-color: rgba(224, 179, 82, 0.7);
+	box-shadow: 0 0 0 3px rgba(192, 138, 30, 0.14);
+	transform: none;
+}
+
+.avatar {
+	width: 34px;
+	height: 34px;
+	display: grid;
+	place-items: center;
+	border-radius: 9px;
+	background: linear-gradient(145deg, #f3dfa6, var(--accent-dark));
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+	color: #1a1102;
+	font-weight: 800;
+	font-size: 0.95rem;
+	/* e um link para a conta: sem isto herdava o sublinhado dos <a> */
+	text-decoration: none;
+	transition: transform 180ms var(--curva), box-shadow 180ms ease;
+}
+
+a.avatar:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 16px rgba(224, 179, 82, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+	text-decoration: none;
+}
+
+.logout {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: rgba(245, 233, 210, 0.6);
+	font: inherit;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: color 160ms ease;
+}
+
+.logout:hover {
+	color: #e79a9a;
+}
+
+/* ---- destaque ------------------------------------------------------- */
+
+/*
+ * A folga de cima e o que impede o titulo de ir parar debaixo da barra.
+ *
+ * O conteudo esta encostado ao fundo, por isso esta folga nao se ve num
+ * destaque normal: o bloco nem chega la acima. Com um titulo de tres
+ * linhas o destaque cresce, o texto comeca no topo — e comecava nos 40px
+ * que aqui estavam, por baixo da barra, que mede uns 73px. O valor conta
+ * com a barra e ainda com o selo do canto, para o texto passar por baixo
+ * dele e nao a meio.
+ */
+.hero {
+	position: relative;
+	min-height: min(88vh, 760px);
+	display: flex;
+	align-items: flex-end;
+	padding: 130px var(--gutter) 96px;
+	overflow: hidden;
+	isolation: isolate;
+}
+
+/* arte: focos de luz quentes sobre uma base escura, em vez de um unico
+   degrade a atravessar o ecra */
+.hero::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -2;
+	background:
+		radial-gradient(58% 72% at 74% 16%, rgba(255, 216, 130, 0.5), transparent 62%),
+		radial-gradient(44% 58% at 93% 74%, rgba(192, 92, 22, 0.36), transparent 68%),
+		radial-gradient(90% 100% at 18% 102%, rgba(38, 23, 6, 0.92), transparent 70%),
+		linear-gradient(118deg, #150f07 0%, #45310f 46%, #0b0805 100%);
+	/* esbate a arte no fim, para nao ficar uma aresta contra o fundo da
+	   pagina, que e um tom ligeiramente diferente */
+	-webkit-mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
+	mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
+}
+
+/* Arte do titulo em destaque, vinda da TMDB. Quando existe, o degrade
+   do tema fica atras dela so como tinta de fundo: sem isto a imagem
+   entrava de repente contra o preto nas bordas. */
+.hero-arte {
+	position: absolute;
+	inset: 0;
+	z-index: -3;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center 22%;
+	/* esbate-se no fim, a par do degrade do tema */
+	-webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+	mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+}
+
+.hero-arte[hidden] {
+	display: none;
+}
+
+/* com imagem, o degrade do tema passa a ser so um tom por cima dela */
+.hero.tem-arte::before {
+	opacity: 0.42;
+	mix-blend-mode: soft-light;
+}
+
+/* grao + degrades de leitura, para o texto assentar na arte */
+.hero::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-image:
+		var(--grao),
+		linear-gradient(to top, rgba(10, 7, 4, 0.92) 1%, rgba(10, 7, 4, 0.45) 34%, transparent 72%),
+		linear-gradient(to right, rgba(8, 5, 3, 0.94) 0%, rgba(8, 5, 3, 0.5) 42%, transparent 68%);
+	background-size: 140px 140px, auto, auto;
+}
+
+.hero-content {
+	position: relative;
+	max-width: 640px;
+	animation: heroIn 760ms var(--curva) both;
+}
+
+@keyframes heroIn {
+	from { opacity: 0; transform: translateY(20px); }
+	to   { opacity: 1; transform: none; }
+}
+
+/*
+ * Canto superior direito do destaque, fora do texto.
+ *
+ * Estava por cima do titulo, dentro do hero-content, e como esse bloco
+ * esta encostado ao fundo e cresce para cima, um titulo de tres linhas
+ * empurrava-o para debaixo da barra de topo, em cima do LUMFLIX. Preso
+ * ao canto, a altura do texto deixa de lhe tocar.
+ *
+ * O topo e medido de forma a ficar abaixo da barra, que e fixa; por isso
+ * muda nos tamanhos em que a barra muda de altura.
+ */
+.hero-kicker {
+	position: absolute;
+	top: 84px;
+	right: var(--gutter);
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	padding: 5px 14px;
+	border: 1px solid rgba(224, 179, 82, 0.5);
+	border-radius: 999px;
+	background: rgba(224, 179, 82, 0.1);
+	color: var(--neon);
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	backdrop-filter: blur(4px);
+	/* entrada propria: ja nao acompanha a do hero-content, de que saiu */
+	animation: kickerIn 760ms var(--curva) both;
+}
+
+@keyframes kickerIn {
+	from { opacity: 0; transform: translateY(-10px); }
+	to   { opacity: 1; transform: none; }
+}
+
+.hero-kicker::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--neon);
+	box-shadow: 0 0 10px var(--neon);
+}
+
+.hero h1 {
+	margin: 0 0 16px;
+	font-size: clamp(2.4rem, 6vw, 4.6rem);
+	font-weight: 800;
+	line-height: 0.98;
+	/* titulos grandes precisam de espacamento negativo, senao ficam soltos */
+	letter-spacing: -0.02em;
+	text-shadow: 0 6px 40px rgba(0, 0, 0, 0.75);
+}
+
+.hero .meta {
+	/* ultima linha antes dos botoes desde que a sinopse saiu do destaque:
+	   a folga que estava na sinopse passa para aqui */
+	margin: 0 0 30px;
+	color: rgba(245, 233, 210, 0.8);
+	font-size: 0.9rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+}
+
+.hero-actions {
+	display: flex;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.hero-actions .button {
+	padding: 14px 30px;
+}
+
+/*
+ * Botao sem nada para fazer.
+ *
+ * Do catalogo inteiro so os classicos tem ficheiro. Nos outros o Play
+ * dizia "Play" e mandava o filme para o "Continue watching" sem nada ter
+ * sido visto; agora diz que nao ha, e um botao apagado tem de parecer
+ * apagado, senao parece que o site esta avariado.
+ */
+.button:disabled {
+	border-color: rgba(192, 138, 30, 0.22);
+	background: rgba(60, 44, 16, 0.35);
+	color: rgba(155, 138, 99, 0.85);
+	box-shadow: none;
+	cursor: not-allowed;
+}
+
+.button:disabled:hover {
+	box-shadow: none;
+	transform: none;
+}
+
+.button.ghost {
+	border: 1px solid rgba(245, 233, 210, 0.26);
+	background: rgba(245, 233, 210, 0.12);
+	color: var(--text);
+	/* sombra neutra em vez do halo dourado do botao principal: assenta o
+	   botao sem competir com ele */
+	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(8px);
+}
+
+.button.ghost:hover {
+	border-color: rgba(245, 233, 210, 0.48);
+	background: rgba(245, 233, 210, 0.2);
+	box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- carrosseis ----------------------------------------------------- */
+
+.rows {
+	position: relative;
+	z-index: 2;
+	/* sobe por cima do fim do destaque, como nas paginas de streaming */
+	margin-top: -100px;
+	padding-bottom: 70px;
+}
+
+/* Pilha explicita: o nome do tema em cima, os cartazes por baixo. Sendo
+   itens de uma coluna flexivel, nenhum deles pode ir parar ao lado do
+   outro nem o comprimento do nome do tema pode empurrar os cartazes. */
+.row {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 38px;
+}
+
+.row-head {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 0 var(--gutter);
+	margin-bottom: 10px;
+}
+
+.row-head h2 {
+	position: relative;
+	margin: 0;
+	padding-left: 15px;
+	/* nomes longos como "Ficção Científica" numa linha so */
+	white-space: nowrap;
+	font-size: 1.12rem;
+	font-weight: 700;
+}
+
+/* barrinha dourada antes do nome: pequeno detalhe, mas e o que faz a
+   seccao parecer desenhada em vez de texto largado na pagina */
+.row-head h2::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 3px;
+	height: 1em;
+	transform: translateY(-50%);
+	border-radius: 2px;
+	background: linear-gradient(to bottom, var(--neon), var(--accent-dark));
+	box-shadow: 0 0 10px rgba(224, 179, 82, 0.55);
+}
+
+.row-viewport {
+	position: relative;
+	/* min-width: 0 impede que o conteudo obrigue a fila a ser mais larga
+	   que o ecra */
+	width: 100%;
+	min-width: 0;
+}
+
+/* Pagina fixa de cartazes: nao rola. As setas trocam o conteudo da fila
+   em vez de o deslizar, por isso nao ha overflow nenhum aqui. */
+.row-track {
+	display: flex;
+	gap: 16px;
+	/* folga em cima e em baixo para o cartao crescer no hover */
+	padding: 24px var(--gutter) 28px;
+}
+
+/* Troca de pagina em duas fases. Os cartazes saem escalonados para o lado
+   contrario ao da viagem e os novos entram do lado de onde vieram; o --n
+   (posicao na fila) vem do JS e e o que da o efeito de cascata. */
+.row-track .card {
+	animation: entraCartaz 460ms var(--curva) both;
+	animation-delay: calc(var(--n, 0) * 55ms);
+}
+
+.row-track[data-sentido="prev"] .card {
+	animation-name: entraCartazPrev;
+}
+
+.row-track.a-sair .card {
+	animation: saiCartaz 230ms ease-in both;
+	animation-delay: calc(var(--n, 0) * 22ms);
+}
+
+.row-track[data-sentido="prev"].a-sair .card {
+	animation-name: saiCartazPrev;
+}
+
+/* o desfoque e o que separa isto de um simples deslizar: os cartazes
+   parecem passar depressa em vez de mudarem de sitio */
+@keyframes entraCartaz {
+	from {
+		opacity: 0;
+		transform: translateX(60px) scale(0.88);
+		filter: blur(7px);
+	}
+	60% {
+		filter: blur(0);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+	}
+}
+
+@keyframes entraCartazPrev {
+	from {
+		opacity: 0;
+		transform: translateX(-60px) scale(0.88);
+		filter: blur(7px);
+	}
+	60% {
+		filter: blur(0);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+	}
+}
+
+@keyframes saiCartaz {
+	from {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateX(-46px) scale(0.9);
+		filter: blur(5px);
+	}
+}
+
+@keyframes saiCartazPrev {
+	from {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateX(46px) scale(0.9);
+		filter: blur(5px);
+	}
+}
+
+/* Setas: um disco com aro dourado dentro de uma faixa que esbate os
+   cartazes por baixo. So aparecem com o rato sobre a fila. */
+.row-arrow {
+	position: absolute;
+	top: 24px;
+	bottom: 28px;
+	z-index: 3;
+	width: 76px;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 0;
+	/* Um <button> sem background declarado herda o buttonface do browser,
+	   que e cinzento claro. Antes nao se via porque as regras .prev/.next
+	   punham la um gradiente; ao tira-lo, ficou o retangulo a descoberto. */
+	background: transparent;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 220ms ease;
+}
+
+/* Sem fundo no botao: qualquer gradiente aqui e aparado pela caixa dele e
+   volta a ler-se como um retangulo. O escurecido vive no disco, em forma
+   de sombra — e as sombras nao sao cortadas pela caixa. */
+.row-arrow.prev {
+	left: 0;
+}
+
+.row-arrow.next {
+	right: 0;
+}
+
+/* O :not(:disabled) e obrigatorio: sem ele este seletor tem mais
+   especificidade que o .row-arrow:disabled abaixo e trazia de volta, ao
+   passar o rato, setas que deviam estar fora — como as do destaque, que
+   tem um filme so. */
+.row-viewport:hover .row-arrow:not(:disabled) {
+	opacity: 1;
+}
+
+/* fila sem nada para rodar, ou ja no fim desse lado: a seta sai da frente */
+.row-arrow:disabled {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.row-arrow-disc {
+	width: 46px;
+	height: 46px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid rgba(224, 179, 82, 0.45);
+	background:
+		radial-gradient(120% 120% at 30% 20%, rgba(224, 179, 82, 0.2), transparent 60%),
+		rgba(16, 11, 4, 0.94);
+	color: var(--neon);
+	/* Sem backdrop-filter de proposito: o botao usa opacity para aparecer,
+	   o que faz dele uma raiz de fundo — o desfoque saia como um retangulo
+	   do tamanho do botao em vez de acompanhar o circulo. O disco e quase
+	   opaco e o halo abaixo chega para o separar do cartaz. */
+	box-shadow:
+		0 0 34px 16px rgba(8, 5, 2, 0.45),
+		0 8px 20px rgba(0, 0, 0, 0.55),
+		inset 0 1px 0 rgba(255, 244, 214, 0.12);
+	transition: transform 240ms var(--curva), border-color 200ms ease,
+		background 200ms ease, box-shadow 200ms ease;
+}
+
+.row-arrow:hover .row-arrow-disc {
+	transform: scale(1.1);
+	border-color: var(--neon);
+	background:
+		radial-gradient(120% 120% at 30% 20%, rgba(224, 179, 82, 0.3), transparent 60%),
+		rgba(30, 21, 6, 0.85);
+	box-shadow:
+		0 0 34px 16px rgba(8, 5, 2, 0.45),
+		0 0 0 4px rgba(192, 138, 30, 0.14),
+		0 0 24px rgba(224, 179, 82, 0.4);
+}
+
+.row-arrow:active .row-arrow-disc {
+	transform: scale(0.96);
+}
+
+.row-arrow svg {
+	width: 20px;
+	height: 20px;
+	/* o chevron fica melhor ligeiramente descentrado para dentro */
+	margin-left: -1px;
+}
+
+.row-arrow.next svg {
+	margin-left: 1px;
+}
+
+/* ---- cartazes ------------------------------------------------------- */
+
+.card {
+	flex: 0 0 186px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: transform 320ms var(--curva);
+}
+
+.card:hover,
+.card:focus-visible {
+	transform: translateY(-10px) scale(1.04);
+	outline: none;
+	z-index: 2;
+}
+
+.poster {
+	position: relative;
+	aspect-ratio: 2 / 3;
+	border-radius: 10px;
+	overflow: hidden;
+	/* --c1/--c2/--c3 sao postas pelo JS a partir do titulo */
+	background:
+		radial-gradient(74% 54% at 24% 12%, var(--c3), transparent 66%),
+		radial-gradient(90% 70% at 86% 96%, rgba(0, 0, 0, 0.55), transparent 60%),
+		linear-gradient(158deg, var(--c1) 0%, var(--c2) 100%);
+	box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+	transition: box-shadow 320ms ease;
+}
+
+.card:hover .poster,
+.card:focus-visible .poster {
+	box-shadow:
+		0 22px 48px rgba(0, 0, 0, 0.68),
+		0 0 0 1.5px rgba(224, 179, 82, 0.85),
+		0 0 26px rgba(192, 138, 30, 0.42);
+}
+
+/* Cartaz verdadeiro, da TMDB. Fica na camada de baixo, debaixo das
+   camadas de textura e do texto, por isso todas as camadas do cartaz
+   levam z-index explicito: sem isso a imagem, sendo um filho real,
+   tapava o ::before e o ::after. */
+.poster-img {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Com arte a serio nao faz falta a inicial gigante nem o titulo escrito:
+   ja esta no cartaz, como num catalogo de verdade. */
+.poster.tem-arte .poster-mark,
+.poster.tem-arte .poster-title {
+	display: none;
+}
+
+/* a textura existe para dar vida a um degrade chapado; sobre uma
+   fotografia chega muito menos */
+.poster.tem-arte::before {
+	opacity: 0.26;
+}
+
+/* sem titulo por baixo, o escurecimento da base passa a ser so um apoio
+   para a sombra, nao uma faixa para texto */
+.poster.tem-arte::after {
+	background: linear-gradient(to top, rgba(6, 4, 2, 0.5) 0%, transparent 44%);
+}
+
+/* brilho diagonal + grao: as duas camadas que dao textura ao cartaz */
+.poster::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-image:
+		linear-gradient(118deg, transparent 32%, rgba(255, 244, 214, 0.18) 48%, transparent 60%),
+		var(--grao);
+	background-size: auto, 140px 140px;
+	opacity: 0.5;
+	mix-blend-mode: soft-light;
+}
+
+/* escurece a base, para o titulo assentar sobre a arte */
+.poster::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	background: linear-gradient(to top, rgba(6, 4, 2, 0.94) 4%, rgba(6, 4, 2, 0.3) 36%, transparent 58%);
+}
+
+/* inicial enorme, cortada pela margem: serve de arte de fundo */
+.poster-mark {
+	position: absolute;
+	top: -24px;
+	right: -14px;
+	z-index: 3;
+	font-size: 8rem;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.06em;
+	color: rgba(255, 255, 255, 0.09);
+	pointer-events: none;
+}
+
+.poster-title {
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	bottom: 13px;
+	z-index: 4;
+	font-size: 0.98rem;
+	font-weight: 800;
+	line-height: 1.12;
+	color: #fff8e9;
+	text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+	transition: transform 320ms var(--curva);
+}
+
+.card:hover .poster-title,
+.card:focus-visible .poster-title {
+	transform: translateY(-2px);
+}
+
+/*
+ * Marca os filmes que se podem mesmo ver, por oposicao aos que so tem
+ * cartaz. Fica sempre visivel, ao contrario do botao do meio, que so
+ * aparece ao passar o rato: e informacao sobre o filme, nao um controlo.
+ */
+.poster-tocavel {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	z-index: 5;
+	padding: 3px 9px;
+	border: 1px solid rgba(224, 179, 82, 0.55);
+	border-radius: 999px;
+	background: rgba(12, 8, 3, 0.72);
+	color: var(--neon);
+	font-size: 0.62rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	backdrop-filter: blur(3px);
+}
+
+.play {
+	position: absolute;
+	top: 46%;
+	left: 50%;
+	z-index: 5;
+	width: 48px;
+	height: 48px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1.5px solid rgba(255, 248, 233, 0.9);
+	background: rgba(12, 8, 3, 0.5);
+	color: #fff8e9;
+	font-size: 0.95rem;
+	opacity: 0;
+	transform: translate(-50%, -50%) scale(0.8);
+	backdrop-filter: blur(3px);
+	transition: opacity 260ms ease, transform 260ms var(--curva);
+}
+
+.card:hover .play,
+.card:focus-visible .play {
+	opacity: 1;
+	transform: translate(-50%, -50%) scale(1);
+}
+
+.card-meta {
+	margin: 11px 2px 0;
+	color: rgba(155, 138, 99, 0.95);
+	font-size: 0.76rem;
+	letter-spacing: 0.03em;
+	/* Sempre numa linha. Nas series esta linha e mais longa ("2 temporadas"
+	   em vez de "2h 08m") e em cartazes estreitos partia em duas, deixando
+	   os cartazes das series mais altos que os dos filmes. Com nowrap, a
+	   altura do cartao passa a depender so do cartaz, que tem proporcao
+	   fixa — logo e igual nas duas paginas, em qualquer ecra. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: color 260ms ease;
+}
+
+.card:hover .card-meta,
+.card:focus-visible .card-meta {
+	color: var(--neon);
+}
+
+.row-empty {
+	padding: 40px var(--gutter);
+	color: var(--muted);
+}
+
+/* ---- ficha do filme ------------------------------------------------- */
+
+.sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	display: grid;
+	/* "safe" center: quando a ficha e mais alta que o ecra — o que acontece
+	   no telemovel, com o cartaz por cima do texto — centrar empurrava o
+	   topo para fora e nao havia como o alcancar. Assim encosta ao topo e
+	   rola. */
+	place-items: safe center;
+	overflow-y: auto;
+	padding: 24px;
+	background: rgba(4, 3, 1, 0.8);
+	backdrop-filter: blur(6px);
+	animation: fade 200ms ease both;
+}
+
+/* O display:grid acima ganha ao [hidden] do browser (que so poe
+   display:none com especificidade de elemento). Sem esta regra a ficha
+   nascia aberta e vazia, por cima do catalogo. */
+.sheet[hidden] {
+	display: none;
+}
+
+@keyframes fade {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+.sheet-card {
+	position: relative;
+	display: flex;
+	gap: 30px;
+	width: min(100%, 760px);
+	padding: 30px;
+	border: 1px solid rgba(192, 138, 30, 0.28);
+	border-radius: 14px;
+	background:
+		radial-gradient(80% 120% at 0% 0%, rgba(192, 138, 30, 0.12), transparent 60%),
+		#130f09;
+	box-shadow: 0 0 40px rgba(192, 138, 30, 0.16), 0 30px 80px rgba(0, 0, 0, 0.7);
+	animation: sheetIn 280ms var(--curva) both;
+}
+
+@keyframes sheetIn {
+	from { opacity: 0; transform: translateY(14px) scale(0.98); }
+	to   { opacity: 1; transform: none; }
+}
+
+.sheet-poster {
+	position: relative;
+	flex: 0 0 176px;
+	aspect-ratio: 2 / 3;
+	border-radius: 10px;
+	overflow: hidden;
+	background:
+		radial-gradient(74% 54% at 24% 12%, var(--c3), transparent 66%),
+		linear-gradient(158deg, var(--c1) 0%, var(--c2) 100%);
+	box-shadow: 0 16px 34px rgba(0, 0, 0, 0.6);
+}
+
+.sheet-poster-img {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.sheet-poster-img[hidden] {
+	display: none;
+}
+
+.sheet-poster.tem-arte span {
+	display: none;
+}
+
+.sheet-poster.tem-arte::before {
+	opacity: 0.24;
+}
+
+.sheet-poster::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-image:
+		linear-gradient(118deg, transparent 32%, rgba(255, 244, 214, 0.18) 48%, transparent 60%),
+		var(--grao);
+	background-size: auto, 140px 140px;
+	opacity: 0.5;
+	mix-blend-mode: soft-light;
+}
+
+.sheet-poster span {
+	position: absolute;
+	top: -20px;
+	right: -12px;
+	z-index: 2;
+	font-size: 7rem;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.06em;
+	color: rgba(255, 255, 255, 0.1);
+}
+
+.sheet-body {
+	min-width: 0;
+	padding-top: 4px;
+}
+
+.sheet-body h2 {
+	margin: 0 0 10px;
+	font-size: 1.7rem;
+	font-weight: 800;
+	line-height: 1.1;
+	letter-spacing: -0.015em;
+}
+
+.sheet-body .meta {
+	margin: 0 0 16px;
+	color: var(--neon);
+	font-size: 0.85rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+}
+
+.sheet-body .synopsis {
+	margin: 0 0 24px;
+	color: rgba(245, 233, 210, 0.78);
+	font-size: 0.96rem;
+	line-height: 1.7;
+}
+
+/* ---- temporadas ------------------------------------------------------ */
+
+.sheet-seasons {
+	margin-top: 22px;
+	padding-top: 18px;
+	border-top: 1px solid rgba(192, 138, 30, 0.18);
+}
+
+.sheet-seasons[hidden] {
+	display: none;
+}
+
+.seasons-label {
+	display: block;
+	color: var(--muted);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+}
+
+.seasons-track {
+	/* medidas de um lugar, para o maximo visivel ser uma conta e nao um
+	   numero magico espalhado pelo ficheiro */
+	--lugar: 38px;
+	--vao: 12px;
+	--visiveis: 5;
+
+	position: relative;
+	display: flex;
+	gap: var(--vao);
+	/* largura de 5 lugares; com menos temporadas encolhe ao conteudo, e o
+	   margin auto mantem a faixa centrada nos dois casos */
+	/* folga a toda a volta: o overflow-x faz o contentor recortar nos dois
+	   eixos, por isso o aro e o brilho do circulo activo precisam de caber
+	   cá dentro. 22px > 3px de aro + 16px de brilho. */
+	--folga: 22px;
+
+	width: fit-content;
+	/* o box-sizing e border-box, logo a folga tem de entrar na conta,
+	   senao cabiam menos de 5 circulos */
+	max-width: calc(var(--visiveis) * var(--lugar)
+		+ (var(--visiveis) - 1) * var(--vao)
+		+ 2 * var(--folga));
+	margin: 0 auto;
+	padding: var(--folga);
+	padding-bottom: calc(var(--folga) + 4px);
+	overflow-x: auto;
+	scroll-behavior: smooth;
+
+	/* linha que liga as temporadas. Vai no background e nao num ::before
+	   porque assim fica presa a parte visivel: os numeros deslizam por
+	   cima dela em vez de a arrastarem consigo. */
+	background-image: linear-gradient(to right,
+		rgba(224, 179, 82, 0.12),
+		rgba(224, 179, 82, 0.42),
+		rgba(224, 179, 82, 0.12));
+	background-repeat: no-repeat;
+	background-size: 100% 1px;
+	background-position: 0 calc(var(--folga) + var(--lugar) / 2);
+
+	scrollbar-width: thin;
+	scrollbar-color: rgba(224, 179, 82, 0.5) rgba(255, 255, 255, 0.06);
+}
+
+.seasons-track::-webkit-scrollbar {
+	height: 6px;
+}
+
+/* o browser punha aqui setinhas nas pontas da barra */
+.seasons-track::-webkit-scrollbar-button {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+.seasons-track::-webkit-scrollbar-track {
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.seasons-track::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: rgba(224, 179, 82, 0.5);
+}
+
+.seasons-track::-webkit-scrollbar-thumb:hover {
+	background: rgba(224, 179, 82, 0.75);
+}
+
+.season {
+	position: relative;
+	/* flex-basis fixa: sem isto os circulos encolhiam para caberem todos,
+	   que era o que ficava estranho com muitas temporadas */
+	flex: 0 0 var(--lugar);
+	height: var(--lugar);
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid rgba(224, 179, 82, 0.3);
+	/* opaco de proposito: e o que interrompe a linha atras dos numeros */
+	background: #15110a;
+	color: var(--muted);
+	font: inherit;
+	font-size: 0.86rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: color 180ms ease, border-color 180ms ease,
+		background 180ms ease, transform 180ms var(--curva);
+}
+
+.season:hover {
+	color: var(--text);
+	border-color: rgba(224, 179, 82, 0.6);
+	transform: translateY(-2px);
+}
+
+.season[aria-pressed="true"] {
+	border-color: var(--neon);
+	background: linear-gradient(145deg, #f3dfa6, var(--accent-dark));
+	color: #1a1102;
+	box-shadow:
+		0 0 0 3px rgba(192, 138, 30, 0.16),
+		0 0 16px rgba(224, 179, 82, 0.5),
+		0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.sheet-close {
+	position: absolute;
+	top: 12px;
+	right: 14px;
+	width: 34px;
+	height: 34px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--muted);
+	font-size: 1.4rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: background 160ms ease, color 160ms ease;
+}
+
+.sheet-close:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: var(--text);
+}
+
+/* ---- responsivo ----------------------------------------------------- */
+
+/*
+ * Ecra largo: o nome do tema e os cartazes na mesma linha, com os
+ * cartazes encostados a direita.
+ *
+ * A fila encolhe ao conteudo e o margin-left:auto empurra-a para a
+ * direita. Duas consequencias uteis: as setas ficam coladas aos cartazes
+ * em vez de nas pontas do ecra, e o comprimento do nome do tema deixa de
+ * desalinhar umas filas das outras — a aresta direita e sempre a mesma.
+ *
+ * So a partir dos 1300px: abaixo disso o nome mais os 1098px de cartazes
+ * nao cabem lado a lado, e a fila volta a empilhar.
+ */
+@media (min-width: 1300px) {
+	.row {
+		flex-direction: row;
+		align-items: center;
+		gap: 24px;
+	}
+
+	.row-head {
+		flex: 0 0 auto;
+		width: auto;
+		margin-bottom: 0;
+		padding-right: 0;
+	}
+
+	.row-viewport {
+		flex: 0 1 auto;
+		/* a regra base poe width:100%: sem o desfazer, a fila ocupava a
+		   linha toda e o margin-left:auto nao tinha espaco para empurrar */
+		width: auto;
+		margin-left: auto;
+	}
+}
+
+@media (max-width: 1100px) {
+	:root {
+		--gutter: 32px;
+	}
+}
+
+@media (max-width: 860px) {
+	:root {
+		--gutter: 20px;
+	}
+
+	/* O menu estava escondido e o telemovel ficava sem navegacao nenhuma.
+	   Passa a caber numa linha so, encolhendo o que e preciso — uma janela
+	   de PC mais estreita que 860px continua com tudo alinhado. */
+	.topbar {
+		gap: 16px;
+		padding: 12px var(--gutter);
+	}
+
+	.brand-logo {
+		font-size: 1.15rem;
+		letter-spacing: 0.16em;
+	}
+
+	.topnav {
+		gap: 16px;
+		font-size: 0.84rem;
+	}
+
+	.topnav a {
+		font-size: 0.84rem;
+	}
+
+	.search {
+		width: 130px;
+	}
+
+	.search:focus {
+		width: 150px;
+	}
+
+	.hero {
+		min-height: 70vh;
+		/* a barra e o selo sao mais baixos aqui, a folga acompanha */
+		padding-top: 116px;
+		padding-bottom: 72px;
+	}
+
+	/* a barra encolheu aqui, o selo pode subir com ela */
+	.hero-kicker {
+		top: 70px;
+	}
+
+	.rows {
+		margin-top: -72px;
+	}
+
+	/* no telemovel muda-se de pagina arrastando o dedo; as setas so
+	   estorvavam por cima dos cartazes */
+	.row-arrow {
+		display: none;
+	}
+
+	.card {
+		flex-basis: 144px;
+	}
+
+	.poster-mark {
+		font-size: 6rem;
+	}
+
+	.sheet-card {
+		flex-direction: column;
+		gap: 22px;
+		padding: 24px;
+	}
+
+	.sheet-poster {
+		flex: 0 0 auto;
+		width: 150px;
+	}
+}
+
+/* antes de partir a barra, sai a pesquisa: ganha-se espaco sem mexer no
+   alinhamento */
+@media (max-width: 760px) {
+	.search {
+		display: none;
+	}
+}
+
+@media (max-width: 560px) {
+	/* so aqui e que o menu precisa mesmo de linha propria */
+	.topbar {
+		flex-wrap: wrap;
+		gap: 10px 16px;
+	}
+
+	.topnav {
+		order: 3;
+		width: 100%;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	.topbar-end {
+		gap: 12px;
+	}
+
+	/*
+	 * No telemovel o destaque tinha altura fixa e o conteudo nao lhe cabia
+	 * dentro: como esta encostado ao fundo, o que sobrava saia por cima e
+	 * ficava escondido atras da barra — desaparecia o titulo.
+	 *
+	 * Passa a crescer com o conteudo, com folga no topo para a barra (que
+	 * aqui tem duas linhas).
+	 */
+	.hero {
+		min-height: 0;
+		padding-top: 108px;
+		padding-bottom: 40px;
+		/* em coluna para o selo poder voltar a ficar por cima do titulo,
+		   em vez de ficar ao lado dele como irmao na mesma linha */
+		flex-direction: column;
+		justify-content: flex-end;
+		align-items: stretch;
+	}
+
+	/*
+	 * Aqui o selo volta ao sitio antigo, por cima do titulo.
+	 *
+	 * Preso ao canto ficava em cima do titulo: neste tamanho o destaque
+	 * cresce com o conteudo em vez de ter altura fixa, por isso o texto
+	 * comeca logo abaixo da barra e nao sobra canto nenhum. E o problema
+	 * que isto resolve no ecra grande — a sinopse comprida empurrar o selo
+	 * para cima — aqui nao existe, porque nada sobe.
+	 */
+	.hero-kicker {
+		position: static;
+		align-self: flex-start;
+		margin-bottom: 14px;
+	}
+
+	/* sem puxao para cima: a fila seguinte estava a subir para cima dos
+	   botoes do destaque */
+	.rows {
+		margin-top: 0;
+	}
+
+	/*
+	 * A arte do destaque ja se esbatia no fim, mas a camada de leitura por
+	 * cima dela nao — acabava a direito num escuro quase opaco e desenhava
+	 * uma risca a toda a largura contra o fundo da pagina. No computador
+	 * nao se via porque as filas sobem por cima dessa zona.
+	 */
+	.hero::after {
+		-webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+	}
+
+	.row {
+		margin-bottom: 26px;
+	}
+
+	/* a barra passa a ter duas linhas: as paginas que nao sao de fundo
+	   inteiro precisam de mais folga no topo */
+	.temporada-shell {
+		padding-top: 122px;
+	}
+
+	.poster-title {
+		font-size: 0.86rem;
+		left: 10px;
+		right: 10px;
+		bottom: 10px;
+	}
+
+	.poster-mark {
+		font-size: 4.6rem;
+	}
+
+	/* mais pequeno para caber inteiro no cartaz de 144px, em vez de ficar
+	   cortado com reticencias */
+	.card-meta {
+		font-size: 0.64rem;
+		letter-spacing: 0;
+	}
+}
+
+/* ---- pagina da temporada -------------------------------------------- */
+
+/*
+ * Tres faixas: cabecalho (cartaz + informacao), lista de episodios e a
+ * barra de temporadas. A altura e a do ecra e so a lista e que rola —
+ * assim o cartaz e as temporadas ficam sempre a vista.
+ */
+.temporada-shell {
+	max-width: 1040px;
+	height: 100vh;
+	margin: 0 auto;
+	padding: 86px var(--gutter) 22px;
+	display: flex;
+	flex-direction: column;
+}
+
+.voltar {
+	flex: 0 0 auto;
+	align-self: flex-start;
+	margin-bottom: 18px;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.voltar:hover {
+	color: var(--neon);
+	text-decoration: none;
+}
+
+/* ---- cabecalho: cartaz + informacao ---------------------------------- */
+
+.serie-cabecalho {
+	flex: 0 0 auto;
+	display: flex;
+	gap: 30px;
+	padding-bottom: 26px;
+}
+
+/* mesma arte dos cartazes do catalogo, so noutro tamanho */
+.serie-cartaz {
+	position: relative;
+	flex: 0 0 176px;
+	aspect-ratio: 2 / 3;
+	border-radius: 10px;
+	overflow: hidden;
+	background:
+		radial-gradient(74% 54% at 24% 12%, var(--c3), transparent 66%),
+		radial-gradient(90% 70% at 86% 96%, rgba(0, 0, 0, 0.55), transparent 60%),
+		linear-gradient(158deg, var(--c1) 0%, var(--c2) 100%);
+	box-shadow: 0 16px 34px rgba(0, 0, 0, 0.6);
+}
+
+/* cartaz da TMDB; sem ele fica o degrade do tema, como na fila */
+.serie-cartaz-img {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.serie-cartaz-img[hidden] {
+	display: none;
+}
+
+.serie-cartaz.tem-arte .poster-mark {
+	display: none;
+}
+
+.serie-cartaz.tem-arte::before {
+	opacity: 0.24;
+}
+
+.serie-cartaz::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-image:
+		linear-gradient(118deg, transparent 32%, rgba(255, 244, 214, 0.18) 48%, transparent 60%),
+		var(--grao);
+	background-size: auto, 140px 140px;
+	opacity: 0.5;
+	mix-blend-mode: soft-light;
+}
+
+.serie-info {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.serie-info h1 {
+	margin: 0 0 10px;
+	font-size: clamp(1.8rem, 3.6vw, 2.6rem);
+	font-weight: 800;
+	line-height: 1.04;
+	letter-spacing: -0.02em;
+}
+
+.serie-info .meta {
+	margin: 0 0 14px;
+	color: var(--neon);
+	font-size: 0.88rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+}
+
+.serie-info .sinopse {
+	margin: 0 0 20px;
+	color: rgba(245, 233, 210, 0.78);
+	font-size: 0.98rem;
+	line-height: 1.65;
+}
+
+.serie-info .hero-actions {
+	margin-top: auto;
+}
+
+/* ---- episodios: a unica zona que rola -------------------------------- */
+
+.episodios {
+	flex: 1 1 auto;
+	/* min-height: 0 e o que permite a um item flexivel encolher abaixo do
+	   seu conteudo — sem isto a lista empurrava a pagina e nao rolava */
+	min-height: 0;
+	overflow-y: auto;
+	padding: 20px 0;
+	/* as duas linhas de divisao */
+	border-top: 1px solid rgba(192, 138, 30, 0.22);
+	border-bottom: 1px solid rgba(192, 138, 30, 0.22);
+
+	scrollbar-width: thin;
+	scrollbar-color: rgba(224, 179, 82, 0.5) rgba(255, 255, 255, 0.06);
+}
+
+.episodios::-webkit-scrollbar {
+	width: 8px;
+}
+
+.episodios::-webkit-scrollbar-button {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+.episodios::-webkit-scrollbar-track {
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.episodios::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: rgba(224, 179, 82, 0.5);
+}
+
+.episodios::-webkit-scrollbar-thumb:hover {
+	background: rgba(224, 179, 82, 0.75);
+}
+
+.episodios h2 {
+	margin: 0 0 16px;
+	font-size: 1.02rem;
+	font-weight: 700;
+	color: var(--muted);
+	letter-spacing: 0.02em;
+}
+
+.lista-episodios {
+	margin: 0;
+	padding: 0 14px 0 0;
+	list-style: none;
+	display: grid;
+	gap: 10px;
+}
+
+.episodio {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 15px 20px;
+	border: 1px solid rgba(192, 138, 30, 0.14);
+	border-radius: 12px;
+	background: rgba(22, 17, 8, 0.55);
+	transition: border-color 180ms ease, background 180ms ease, transform 180ms var(--curva);
+}
+
+.episodio:hover {
+	border-color: rgba(224, 179, 82, 0.4);
+	background: rgba(30, 22, 9, 0.75);
+	transform: translateX(4px);
+}
+
+.ep-numero {
+	flex: 0 0 auto;
+	width: 34px;
+	text-align: center;
+	color: var(--muted);
+	font-size: 1.3rem;
+	font-weight: 800;
+	transition: color 180ms ease;
+}
+
+.episodio:hover .ep-numero {
+	color: var(--neon);
+}
+
+.ep-corpo {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.ep-corpo h3 {
+	margin: 0 0 4px;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.ep-meta {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.8rem;
+	letter-spacing: 0.03em;
+}
+
+.ep-play {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid rgba(224, 179, 82, 0.3);
+	background: rgba(16, 11, 4, 0.9);
+	color: var(--neon);
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: transform 180ms var(--curva), border-color 180ms ease, background 180ms ease;
+}
+
+.ep-play:hover {
+	transform: scale(1.1);
+	border-color: var(--neon);
+	background: rgba(224, 179, 82, 0.16);
+}
+
+/* ---- temporadas, encostadas ao fundo --------------------------------- */
+
+.temporada-picker {
+	flex: 0 0 auto;
+	padding-top: 14px;
+	text-align: center;
+}
+
+@media (max-width: 720px) {
+	.temporada-shell {
+		height: auto;
+		min-height: 100vh;
+	}
+
+	.serie-cabecalho {
+		flex-direction: column;
+		gap: 20px;
+	}
+
+	.serie-cartaz {
+		flex: 0 0 auto;
+		width: 140px;
+	}
+
+	.episodios {
+		overflow-y: visible;
+	}
+
+	.episodio {
+		gap: 12px;
+		padding: 14px;
+	}
+
+	.ep-numero {
+		width: 26px;
+		font-size: 1.1rem;
+	}
+}
+
+/* ---- aviso de email em falta ---------------------------------------- */
+
+/* Flutua por cima do conteudo em vez de empurrar a pagina: assim nao
+   desloca o destaque nem as filas quando aparece. */
+.aviso-email {
+	position: fixed;
+	right: var(--gutter);
+	bottom: 24px;
+	z-index: 30;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	max-width: 440px;
+	padding: 16px 44px 16px 20px;
+	border: 1px solid rgba(224, 179, 82, 0.4);
+	border-radius: 14px;
+	background:
+		radial-gradient(90% 130% at 0% 0%, rgba(192, 138, 30, 0.16), transparent 60%),
+		rgba(20, 15, 7, 0.96);
+	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 26px rgba(192, 138, 30, 0.2);
+	animation: avisoEntra 420ms var(--curva) both;
+}
+
+@keyframes avisoEntra {
+	from { opacity: 0; transform: translateY(16px); }
+	to   { opacity: 1; transform: none; }
+}
+
+.aviso-email-texto {
+	min-width: 0;
+}
+
+.aviso-email-texto strong {
+	display: block;
+	margin-bottom: 3px;
+	font-size: 0.95rem;
+}
+
+.aviso-email-texto p {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.85rem;
+	line-height: 1.45;
+}
+
+.aviso-email .button {
+	flex: 0 0 auto;
+	padding: 10px 22px;
+	font-size: 0.88rem;
+	text-decoration: none;
+}
+
+.aviso-email .button:hover {
+	text-decoration: none;
+}
+
+.aviso-email-fechar {
+	position: absolute;
+	top: 8px;
+	right: 10px;
+	width: 26px;
+	height: 26px;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--muted);
+	font-size: 1.2rem;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.aviso-email-fechar:hover {
+	color: var(--text);
+	background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 560px) {
+	.aviso-email {
+		left: var(--gutter);
+		right: var(--gutter);
+		bottom: 16px;
+		max-width: none;
+		gap: 12px;
+		padding: 14px 40px 14px 16px;
+	}
+}
+
+/* ---- botao "+ My list" quando o titulo ja esta guardado --------------- */
+
+/* Vive aqui e nao no lista.css porque quem usa este estado sao as fichas
+   das paginas de catalogo, que nao carregam aquela folha. */
+.button.na-lista {
+	border-color: rgba(224, 179, 82, 0.65);
+	background: rgba(224, 179, 82, 0.18);
+	color: var(--neon);
+}

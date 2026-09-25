@@ -1,0 +1,141 @@
+/**
+ * [ESTILO-2FA] setup.css
+ * Caixa em destaque que mostra o secret 2FA formatado, e o aperto do
+ * conteudo para o cartao ficar do mesmo tamanho que os outros.
+ *
+ * O painel das credenciais e estreito (40% do cartao, menos 104px de
+ * folga para a diagonal) e esta pagina tem muito mais texto que o login
+ * e o registo. Com os tamanhos base, o titulo partia em duas linhas, o
+ * codigo tambem, e o conteudo passava os 520px do cartao — que e um
+ * min-height, por isso o cartao crescia em vez de parar ali.
+ *
+ * As regras abaixo repetem seletores do style.css de proposito: esta
+ * folha carrega a seguir, logo com a mesma especificidade ganha.
+ */
+
+/* uma linha so: "Configurar 2FA" nao cabia a 2.6rem */
+.form-panel #setup-title {
+	font-size: clamp(1.7rem, 3vw, 2.1rem);
+	margin-bottom: 18px;
+}
+
+.form-panel .subtitle {
+	font-size: 0.92rem;
+	margin-bottom: 18px;
+}
+
+.success {
+	margin-top: 14px;
+	padding: 16px;
+}
+
+.success.show {
+	gap: 12px;
+}
+
+.success p {
+	font-size: 0.92rem;
+}
+
+.secret-display {
+	text-align: center;
+	/* sem margem: a .success ja e uma grelha com gap, e os 18px+18px que
+	   estavam aqui somavam-se a ele */
+	margin: 0;
+}
+
+.secret-display code {
+	display: inline-block;
+	padding: 10px 14px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--field-border);
+	/* 1.15rem fazia o secret partir em duas linhas neste painel */
+	font-size: 1rem;
+	letter-spacing: 0.04em;
+	color: var(--text);
+}
+
+/* ---- QR code vs chave manual -------------------------------------- */
+
+/* Palco de altura fixa: as duas vistas ocupam o mesmo espaco, senao
+   carregar nos botoes mudava a altura do cartao. O valor e o do QR
+   (124px) mais a zona de silencio de 10px de cada lado. */
+.secret-stage {
+	display: grid;
+	place-items: center;
+	min-height: 144px;
+}
+
+.qr-view {
+	display: grid;
+	place-items: center;
+}
+
+/* fundo claro a toda a volta: a zona de silencio faz parte do QR, sem
+   ela os leitores tem dificuldade em encontrar os cantos */
+#qrTarget {
+	padding: 10px;
+	border-radius: 10px;
+	background: #f5e9d2;
+	line-height: 0;
+}
+
+#qrTarget canvas,
+#qrTarget img {
+	display: block;
+}
+
+.secret-toggle {
+	display: flex;
+	justify-content: center;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.toggle-view {
+	padding: 2px 0;
+	border: 0;
+	border-bottom: 1.5px solid transparent;
+	background: transparent;
+	font: inherit;
+	font-size: 0.85rem;
+	color: var(--muted);
+	cursor: pointer;
+}
+
+.toggle-view:hover {
+	color: var(--text);
+}
+
+.toggle-view.is-active {
+	color: var(--neon);
+	font-weight: 700;
+	border-bottom-color: var(--neon);
+}
+
+/* Rede de seguranca para o tamanho: com o QR aberto o conteudo desta
+   pagina chega perto dos 520px. Fixar a altura garante que o cartao fica
+   igual ao do login e do registo aconteca o que acontecer; se algum dia
+   passar, o painel ganha scroll em vez de o cartao crescer. */
+.split-card {
+	height: 520px;
+}
+
+.form-panel {
+	min-height: 0;
+	overflow-y: auto;
+	padding-top: 26px;
+	padding-bottom: 26px;
+}
+
+@media (max-width: 760px) {
+	/* empilhado, o cartao volta a crescer com o conteudo */
+	.split-card {
+		height: auto;
+	}
+
+	.form-panel {
+		overflow-y: visible;
+	}
+}

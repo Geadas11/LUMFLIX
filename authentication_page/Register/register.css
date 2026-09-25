@@ -1,0 +1,66 @@
+/**
+ * [ESTILO-REGISTO] register.css
+ * Estilo específico do register.html: botão de mostrar/esconder
+ * password (ícone de olho) dentro dos campos.
+ */
+
+.password-field {
+	position: relative;
+}
+
+.password-field input {
+	padding-right: 46px;
+}
+
+.toggle-password {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 32px;
+	height: 32px;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	border-radius: 8px;
+	color: var(--muted);
+}
+
+.toggle-password:hover {
+	color: var(--text);
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.toggle-password svg {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 20px;
+	height: 20px;
+	transform: translate(-50%, -50%) scale(1);
+	opacity: 1;
+	transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toggle-password .icon-closed {
+	opacity: 0;
+	transform: translate(-50%, -50%) scale(0.6);
+}
+
+.toggle-password[aria-pressed="true"] .icon-open {
+	opacity: 0;
+	transform: translate(-50%, -50%) scale(0.6);
+}
+
+.toggle-password[aria-pressed="true"] .icon-closed {
+	opacity: 1;
+	transform: translate(-50%, -50%) scale(1);
+}
+
+/* O formulário ocupa a altura toda do painel para o rodapé poder
+   encostar ao fundo (espelho do título, que fica encostado ao topo). */
+.form-panel #registerForm {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+}
