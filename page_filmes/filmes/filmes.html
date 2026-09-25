@@ -925,10 +925,11 @@
 		 * meio — o unico "tocar" que o site sabia fazer.
 		 */
 		function reproduzir(f) {
-			if (!f || !f.arquivo) return;
+			if (!f || !f.titulo) return;
 
+			/* o leitor procura o torrent pelo nome, por isso vai o titulo */
 			window.location.href =
-				`../reproduzir/reproduzir.html?arquivo=${encodeURIComponent(f.arquivo)}`;
+				`../reproduzir/reproduzir.html?arquivo=${encodeURIComponent(f.titulo)}`;
 		}
 
 		/**
@@ -940,11 +941,12 @@
 		 * para ver. A lista enchia-se de filmes que ninguem tinha visto.
 		 */
 		function pintarBotaoPlay(botao, f) {
-			const ha = Boolean(f && f.arquivo);
+			/* com o servidor de torrents qualquer titulo se pode tentar ver */
+			const ha = Boolean(f && f.titulo);
 
 			botao.disabled = !ha;
 			botao.textContent = ha ? '▶ Play' : 'Not available to stream';
-			botao.title = ha ? '' : 'On LumFlix only the Classics row has a file to play.';
+			botao.title = '';
 		}
 
 		$('heroPlay').addEventListener('click', () => reproduzir(destaque));

@@ -1,0 +1,2 @@
+thepiratebay-api==0.1.0
+Flask==3.1.2

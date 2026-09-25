@@ -1,743 +1,938 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>LumFlix | Player</title>
 
-	<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
-	<link rel="stylesheet" href="../catalogo.css">
-	<link rel="stylesheet" href="reproduzir.css">
+<link rel="stylesheet" href="../../authentication_page/Shared/style.css">
+<link rel="stylesheet" href="../catalogo.css">
+<link rel="stylesheet" href="reproduzir.css">
+
 </head>
 
 <body>
 
-	<header class="leitor-topo">
+<header class="leitor-topo">
 
-		<a class="voltar" href="../filmes/filmes.html">
-			&larr; Back
-		</a>
+	<a class="voltar" href="../filmes/filmes.html">
+		&larr; Back
+	</a>
 
-		<div class="leitor-titulo">
-			<h1 id="titulo">Loading&hellip;</h1>
-			<p class="meta" id="meta"></p>
-		</div>
+	<div class="leitor-titulo">
+		<h1 id="titulo">Loading&hellip;</h1>
+		<p class="meta" id="meta"></p>
+	</div>
 
-	</header>
-
-
-	<main class="palco">
-
-		<div class="moldura">
-
-			<video
-				id="video"
-				controls
-				playsinline
-				preload="metadata">
-			</video>
+</header>
 
 
-			<div class="sobreposto" id="espera">
+<main class="palco">
 
-				<div class="disco" aria-hidden="true"></div>
+	<div class="moldura">
 
-				<p id="esperaTexto">
-					Preparing the film&hellip;
-				</p>
+		<video
+			id="video"
+			controls
+			playsinline
+			preload="metadata">
+		</video>
 
-			</div>
 
+		<div class="sobreposto" id="espera">
 
-			<div class="sobreposto" id="falha" hidden>
+			<div class="disco" aria-hidden="true"></div>
 
-				<p>
-
-					<strong>
-						This one will not play
-					</strong>
-
-					<span id="falhaTexto">
-						The video server did not answer.
-					</span>
-
-				</p>
-
-				<a
-					class="button pill"
-					href="../filmes/filmes.html">
-					Back to movies
-				</a>
-
-			</div>
+			<p id="esperaTexto">
+				Preparing the film&hellip;
+			</p>
 
 		</div>
 
-	</main>
+
+		<div class="sobreposto" id="falha" hidden>
+
+			<p>
+
+				<strong>
+					This one will not play
+				</strong>
+
+				<span id="falhaTexto">
+					The video server did not answer.
+				</span>
+
+			</p>
+
+			<a
+				class="button pill"
+				href="../filmes/filmes.html">
+				Back to movies
+			</a>
+
+		</div>
+
+	</div>
+
+</main>
 
 
-	<footer class="leitor-rodape">
+<footer class="leitor-rodape">
 
-		<p id="creditos">
-			Streamed by LUMFLIX.
-		</p>
+	<p id="creditos">
+		Streamed by LUMFLIX.
+	</p>
 
-	</footer>
-
-
-	<script>
-
-		const $ = (id) =>
-			document.getElementById(id);
+</footer>
 
 
-		/* ---------------------------------------------------------
-		 * CONFIG
-		 * --------------------------------------------------------- */
+<script>
 
-		const SESSAO =
-			'../../authentication_page/Shared/session.php';
+	const $ = (id) =>
+		document.getElementById(id);
 
-		const LOGIN =
-			'../../authentication_page/Login/auth.html';
 
-		const TORRENT =
-			'../torrent.php';
+	/* ---------------------------------------------------------
+	 * CONFIG
+	 * --------------------------------------------------------- */
 
-		const CONTINUAR =
-			'../continuar_ver/ver.php';
+	const SESSAO =
+		'../../authentication_page/Shared/session.php';
 
+	const LOGIN =
+		'../../authentication_page/Login/auth.html';
+
+	const TORRENT =
+		'../torrent.php';
+
+	const CONTINUAR =
+		'../continuar_ver/ver.php';
+
+
+	/* ---------------------------------------------------------
+	 * PARÂMETROS
+	 * --------------------------------------------------------- */
+
+	const params =
+		new URLSearchParams(
+			window.location.search
+		);
+
+	const arquivo =
+		params.get('arquivo') || '';
+
+
+	/* ---------------------------------------------------------
+	 * ESTADO
+	 * --------------------------------------------------------- */
+
+	let token = '';
+
+	let retomarEm = 0;
+
+	let registado = false;
+
+	let ultimoEnvio = 0;
+
+
+	/* ---------------------------------------------------------
+	 * ERRO
+	 * --------------------------------------------------------- */
+
+	function falhar(texto) {
+
+		$('espera').hidden = true;
+
+		$('falha').hidden = false;
+
+		if (texto) {
+
+			$('falhaTexto').textContent =
+				texto;
+		}
+	}
+
+
+	/* ---------------------------------------------------------
+	 * ARRANQUE
+	 * --------------------------------------------------------- */
+
+	(async () => {
 
 		/*
-		 * Neste momento o teste aceita:
-		 *
-		 * ?arquivo=...
-		 *
-		 * e
-		 *
-		 * ?magnet=magnet:...
-		 *
-		 * Mais tarde o magnet será obtido automaticamente
-		 * pela API.
+		 * Verificar sessão.
 		 */
 
-		const params =
-			new URLSearchParams(window.location.search);
-
-		const arquivo =
-			params.get('arquivo') || '';
-
-		const magnet =
-			params.get('magnet') || '';
-
-
-		/* ---------------------------------------------------------
-		 * ESTADO
-		 * --------------------------------------------------------- */
-
-		let filme = null;
-
-		let token = '';
-
-		let retomarEm = 0;
-
-		let registado = false;
-
-		let ultimoEnvio = 0;
-
-
-		/* ---------------------------------------------------------
-		 * ERRO
-		 * --------------------------------------------------------- */
-
-		function falhar(texto) {
-
-			$('espera').hidden = true;
-
-			$('falha').hidden = false;
-
-			if (texto) {
-				$('falhaTexto').textContent = texto;
-			}
-		}
-
-
-		/* ---------------------------------------------------------
-		 * ARRANQUE
-		 * --------------------------------------------------------- */
-
-		(async () => {
-
-			/*
-			 * Verificar sessão.
-			 */
-			try {
-
-				const res = await (
-					await fetch(SESSAO, {
-						credentials: 'same-origin'
-					})
-				).json();
-
-
-				if (!res.authenticated) {
-
-					window.location.replace(LOGIN);
-
-					return;
-				}
-
-			} catch (err) {
-
-				console.error(
-					'Sessão:',
-					err
-				);
-
-			}
-
-
-			if (!arquivo && !magnet) {
-
-				falhar(
-					'No film was selected.'
-				);
-
-				return;
-			}
-
-
-			/*
-			 * Carregar progresso e iniciar vídeo.
-			 */
-			await carregarProgresso();
-
-			await tocar();
-
-		})();
-
-
-		/* ---------------------------------------------------------
-		 * FILME
-		 *
-		 * Mantémos a informação que vinha do catálogo.
-		 *
-		 * Para já o título vem do arquivo se não houver catálogo.
-		 * --------------------------------------------------------- */
-
-		async function carregarFilme() {
-
-			if (!arquivo) {
-				return;
-			}
-
-			/*
-			 * Não precisamos do Archive.
-			 *
-			 * O catálogo atual pode continuar a fornecer os dados
-			 * visuais através do próprio frontend.
-			 */
-		}
-
-
-		/* ---------------------------------------------------------
-		 * PROGRESSO
-		 * --------------------------------------------------------- */
-
-		async function carregarProgresso() {
-
-			try {
-
-				const res = await (
-					await fetch(
-						`${CONTINUAR}?action=listar`,
-						{
-							headers: {
-								'Accept':
-									'application/json'
-							},
-							credentials:
-								'same-origin'
-						}
-					)
-				).json();
-
-
-				if (res.status !== 'ok') {
-					return;
-				}
-
-
-				token = res.token;
-
-
-				/*
-				 * Só conseguimos recuperar o título se
-				 * o catálogo o fornecer.
-				 *
-				 * Por enquanto procuramos pelo arquivo.
-				 */
-				const ja =
-					(res.itens || []).find(
-						x => x.titulo === arquivo
-					);
-
-
-				if (
-					ja &&
-					ja.progresso > 0 &&
-					ja.progresso < 97
-				) {
-
-					retomarEm =
-						ja.progresso;
-				}
-
-			} catch (err) {
-
-				console.error(
-					'Progresso:',
-					err
-				);
-
-			}
-		}
-
-
-		/* ---------------------------------------------------------
-		 * INICIAR TORRENT
-		 * --------------------------------------------------------- */
-
-		async function iniciarTorrent() {
-
-			if (!magnet) {
-
-				throw new Error(
-					'Este filme ainda não tem magnet associado.'
-				);
-			}
-
-
-			const url =
-				`${TORRENT}?action=start&magnet=`
-				+ encodeURIComponent(magnet);
-
+		try {
 
 			const resposta =
-				await fetch(url, {
-					headers: {
-						'Accept':
-							'application/json'
-					},
-					credentials:
-						'same-origin'
-				});
-
-
-			if (!resposta.ok) {
-
-				throw new Error(
-					'Não foi possível contactar o servidor torrent.'
+				await fetch(
+					SESSAO,
+					{
+						credentials:
+							'same-origin'
+					}
 				);
-			}
 
 
 			const res =
 				await resposta.json();
 
 
-			if (
-				res.status !== 'ok' ||
-				!res.id
-			) {
+			if (!res.authenticated) {
 
-				throw new Error(
-					res.error ||
-					'Não foi possível iniciar o torrent.'
+				window.location.replace(
+					LOGIN
 				);
+
+				return;
 			}
 
+		} catch (err) {
 
-			return res.id;
+			console.error(
+				'Sessão:',
+				err
+			);
+
 		}
 
 
-		/* ---------------------------------------------------------
-		 * ESPERAR PELO VÍDEO
-		 * --------------------------------------------------------- */
+		if (!arquivo) {
 
-		async function esperarVideo(id) {
+			falhar(
+				'No film was selected.'
+			);
 
-			for (
-				let tentativa = 0;
-				tentativa < 120;
-				tentativa++
-			) {
-
-				const resposta =
-					await fetch(
-						`${TORRENT}?action=stream&id=${encodeURIComponent(id)}`,
-						{
-							headers: {
-								'Accept':
-									'application/json'
-							},
-							credentials:
-								'same-origin'
-						}
-					);
+			return;
+		}
 
 
-				if (resposta.ok) {
+		/*
+		 * Mostrar o nome do filme.
+		 */
 
-					const res =
-						await resposta.json();
+		$('titulo').textContent =
+			arquivo;
 
 
-					if (
-						res.status === 'ok' &&
-						res.video
-					) {
+		/*
+		 * Carregar progresso.
+		 */
 
-						return res.video;
+		await carregarProgresso();
+
+
+		/*
+		 * Iniciar reprodução.
+		 */
+
+		await tocar();
+
+	})();
+
+
+	/* ---------------------------------------------------------
+	 * PROGRESSO
+	 * --------------------------------------------------------- */
+
+	async function carregarProgresso() {
+
+		try {
+
+			const resposta =
+				await fetch(
+					`${CONTINUAR}?action=listar`,
+					{
+						headers: {
+							'Accept':
+								'application/json'
+						},
+
+						credentials:
+							'same-origin'
 					}
-				}
-
-
-				/*
-				 * Esperar 1 segundo.
-				 */
-				await new Promise(
-					resolve =>
-						setTimeout(resolve, 1000)
 				);
+
+
+			const res =
+				await resposta.json();
+
+
+			if (res.status !== 'ok') {
+				return;
 			}
 
+
+			token =
+				res.token || '';
+
+
+			/*
+			 * Procurar o filme guardado.
+			 */
+
+			const ja =
+				(res.itens || []).find(
+					x =>
+						x.titulo === arquivo
+				);
+
+
+			if (
+				ja &&
+				ja.progresso > 0 &&
+				ja.progresso < 97
+			) {
+
+				retomarEm =
+					ja.progresso;
+			}
+
+		} catch (err) {
+
+			console.error(
+				'Progresso:',
+				err
+			);
+
+		}
+	}
+
+
+	/* ---------------------------------------------------------
+	 * PROCURAR TORRENT NA APIBAY
+	 * --------------------------------------------------------- */
+
+	async function procurarTorrent() {
+
+		if (!arquivo) {
 
 			throw new Error(
-				'O vídeo demorou demasiado tempo a preparar.'
+				'No film was selected.'
 			);
 		}
 
 
-		/* ---------------------------------------------------------
-		 * TOCAR
-		 * --------------------------------------------------------- */
+		$('esperaTexto').textContent =
+			'Searching for the film…';
 
-		async function tocar() {
 
-			try {
-
-				$('esperaTexto').textContent =
-					'Connecting to the torrent network…';
-
-
-				/*
-				 * 1. Adicionar torrent ao servidor.
-				 */
-				const id =
-					await iniciarTorrent();
-
-
-				$('esperaTexto').textContent =
-					'Preparing video…';
-
-
-				/*
-				 * 2. Esperar que o WebTorrent encontre
-				 *    o ficheiro de vídeo.
-				 */
-				const videoUrl =
-					await esperarVideo(id);
-
-
-				/*
-				 * 3. Finalmente o browser recebe apenas
-				 *    HTTP vídeo.
-				 */
-				$('video').src =
-					videoUrl;
-
-
-			} catch (err) {
-
-				console.error(
-					'Player:',
-					err
-				);
-
-
-				falhar(
-					err.message ||
-					'Could not start the video.'
-				);
-			}
-		}
-
-
-		const video =
-			$('video');
-
-
-		/* ---------------------------------------------------------
-		 * VÍDEO PRONTO
-		 * --------------------------------------------------------- */
-
-		video.addEventListener(
-			'loadeddata',
-			() => {
-
-				$('espera').hidden = true;
-
-
-				/*
-				 * Retomar.
-				 */
-				if (
-					retomarEm > 0 &&
-					Number.isFinite(
-						video.duration
-					)
-				) {
-
-					video.currentTime =
-						video.duration *
-						(retomarEm / 100);
-				}
-
-			}
-		);
-
-
-		/* ---------------------------------------------------------
-		 * ERRO DO PLAYER
-		 * --------------------------------------------------------- */
-
-		video.addEventListener(
-			'error',
-			() => {
-
-				falhar(
-					'The video could not be played by this browser.'
-				);
-
-			}
-		);
-
-
-		/* ---------------------------------------------------------
-		 * CONTINUAR A VER
-		 * --------------------------------------------------------- */
-
-		video.addEventListener(
-			'play',
-			registar
-		);
-
-
-		video.addEventListener(
-			'timeupdate',
-			() => {
-
-				if (
-					!Number.isFinite(video.duration) ||
-					video.duration === 0
-				) {
-					return;
-				}
-
-
-				if (
-					video.currentTime -
-					ultimoEnvio < 10
-				) {
-					return;
-				}
-
-
-				ultimoEnvio =
-					video.currentTime;
-
-
-				guardarProgresso();
-
-			}
-		);
-
-
-		video.addEventListener(
-			'pause',
-			guardarProgresso
-		);
-
-
-		window.addEventListener(
-			'pagehide',
-			guardarProgresso
-		);
-
-
-		/* ---------------------------------------------------------
-		 * REGISTAR
-		 * --------------------------------------------------------- */
-
-		async function registar() {
-
-			if (
-				registado ||
-				!token
-			) {
-				return;
-			}
-
-
-			registado = true;
-
-
-			try {
-
-				await chamar(
-					'registar',
-					{
-						titulo:
-							arquivo,
-
-						categoria:
-							'',
-
-						extra:
-							'',
-
-						arte:
-							''
-					}
-				);
-
-			} catch (err) {
-
-				console.error(
-					'Registar:',
-					err
-				);
-
-			}
-		}
-
-
-		/* ---------------------------------------------------------
-		 * GUARDAR PROGRESSO
-		 * --------------------------------------------------------- */
-
-		function guardarProgresso() {
-
-			if (
-				!token ||
-				!Number.isFinite(
-					video.duration
-				) ||
-				video.duration === 0
-			) {
-				return;
-			}
-
-
-			const pct =
-				Math.round(
-					(video.currentTime /
-						video.duration) *
-					100
-				);
-
-
-			if (pct <= 0) {
-				return;
-			}
-
-
-			try {
-
-				chamar(
-					'progresso',
-					{
-						titulo:
-							arquivo,
-
-						progresso:
-							Math.min(
-								100,
-								pct
-							)
-					}
-				);
-
-			} catch (err) {
-
-				console.error(
-					'Progresso:',
-					err
-				);
-
-			}
-		}
-
-
-		/* ---------------------------------------------------------
-		 * POST CONTINUAR
-		 * --------------------------------------------------------- */
-
-		function chamar(
-			action,
-			campos
-		) {
-
-			const corpo =
-				new FormData();
-
-
-			corpo.append(
-				'action',
-				action
+		const url =
+			`${TORRENT}?action=search&q=`
+			+ encodeURIComponent(
+				arquivo
 			);
 
 
-			corpo.append(
-				'token',
-				token
-			);
-
-
-			Object.entries(
-				campos
-			).forEach(
-				([k, v]) =>
-					corpo.append(k, v)
-			);
-
-
-			return fetch(
-				CONTINUAR,
+		const resposta =
+			await fetch(
+				url,
 				{
-					method: 'POST',
-
 					headers: {
-						'X-Requested-With':
-							'XMLHttpRequest',
-
 						'Accept':
 							'application/json'
 					},
 
 					credentials:
-						'same-origin',
-
-					body: corpo,
-
-					keepalive: true
+						'same-origin'
 				}
+			);
+
+
+		if (!resposta.ok) {
+
+			throw new Error(
+				'Could not search for the film.'
 			);
 		}
 
-	</script>
+
+		const res =
+			await resposta.json();
+
+
+		if (
+			res.status !== 'ok' ||
+			!res.torrent ||
+			!res.torrent.magnet
+		) {
+
+			throw new Error(
+				res.error ||
+				'No torrent was found for this film.'
+			);
+		}
+
+
+		console.log(
+			'Torrent found:',
+			res.torrent.title
+		);
+
+
+		return res.torrent.magnet;
+	}
+
+
+	/* ---------------------------------------------------------
+	 * INICIAR TORRENT NO SERVIDOR
+	 * --------------------------------------------------------- */
+
+	async function iniciarTorrent(
+		magnet
+	) {
+
+		if (!magnet) {
+
+			throw new Error(
+				'No magnet link was found.'
+			);
+		}
+
+
+		$('esperaTexto').textContent =
+			'Connecting to the torrent network…';
+
+
+		const url =
+			`${TORRENT}?action=start&magnet=`
+			+ encodeURIComponent(
+				magnet
+			);
+
+
+		const resposta =
+			await fetch(
+				url,
+				{
+					headers: {
+						'Accept':
+							'application/json'
+					},
+
+					credentials:
+						'same-origin'
+				}
+			);
+
+
+		if (!resposta.ok) {
+
+			throw new Error(
+				'Could not contact the torrent server.'
+			);
+		}
+
+
+		const res =
+			await resposta.json();
+
+
+		if (
+			res.status !== 'ok' ||
+			!res.id
+		) {
+
+			throw new Error(
+				res.error ||
+				'Could not start the torrent.'
+			);
+		}
+
+
+		return res.id;
+	}
+
+
+	/* ---------------------------------------------------------
+	 * ESPERAR PELO VÍDEO
+	 * --------------------------------------------------------- */
+
+	async function esperarVideo(id) {
+
+		for (
+			let tentativa = 0;
+			tentativa < 180;
+			tentativa++
+		) {
+
+			const resposta =
+				await fetch(
+					`${TORRENT}?action=status&id=`
+					+ encodeURIComponent(
+						id
+					),
+					{
+						headers: {
+							'Accept':
+								'application/json'
+						},
+
+						credentials:
+							'same-origin'
+					}
+				);
+
+
+			if (resposta.ok) {
+
+				const res =
+					await resposta.json();
+
+
+				if (
+					res.status === 'ok'
+				) {
+
+					/*
+					 * Atualizar texto
+					 * com o estado atual.
+					 */
+
+					if (
+						res.peers !== undefined
+					) {
+
+						const percentagem =
+							Math.round(
+								(
+									res.progress || 0
+								) * 100
+							);
+
+
+						$('esperaTexto').textContent =
+							`Preparing video… ${percentagem}% · ${res.peers} peers`;
+					}
+
+
+					/*
+					 * O ficheiro já foi
+					 * encontrado.
+					 */
+
+					if (
+						res.ready &&
+						res.video
+					) {
+
+						console.log(
+							'Video ready:',
+							res.video.name
+						);
+
+
+						return (
+							`${TORRENT}?action=stream&id=`
+							+ encodeURIComponent(
+								id
+							)
+						);
+					}
+				}
+
+
+				if (
+					res.status === 'error'
+				) {
+
+					throw new Error(
+						res.error ||
+						'The torrent server returned an error.'
+					);
+				}
+			}
+
+
+			await new Promise(
+				resolve =>
+					setTimeout(
+						resolve,
+						1000
+					)
+			);
+		}
+
+
+		throw new Error(
+			'The video took too long to prepare.'
+		);
+	}
+
+
+	/* ---------------------------------------------------------
+	 * TOCAR
+	 * --------------------------------------------------------- */
+
+	async function tocar() {
+
+		try {
+
+			/*
+			 * 1.
+			 * Procurar o filme na APIBay.
+			 */
+
+			const magnet =
+				await procurarTorrent();
+
+
+			/*
+			 * 2.
+			 * Enviar o magnet para o
+			 * servidor WebTorrent.
+			 */
+
+			const torrentId =
+				await iniciarTorrent(
+					magnet
+				);
+
+
+			/*
+			 * 3.
+			 * Esperar até existir um
+			 * ficheiro de vídeo.
+			 */
+
+			const videoUrl =
+				await esperarVideo(
+					torrentId
+				);
+
+
+			/*
+			 * 4.
+			 * O browser recebe apenas
+			 * HTTP vídeo.
+			 *
+			 * NÃO usa WebTorrent.
+			 */
+
+			$('video').src =
+				videoUrl;
+
+
+			$('video').load();
+
+
+		} catch (err) {
+
+			console.error(
+				'Player:',
+				err
+			);
+
+
+			falhar(
+				err.message ||
+				'Could not start the video.'
+			);
+		}
+	}
+
+
+	const video =
+		$('video');
+
+
+	/* ---------------------------------------------------------
+	 * VÍDEO PRONTO
+	 * --------------------------------------------------------- */
+
+	video.addEventListener(
+		'loadeddata',
+		() => {
+
+			$('espera').hidden = true;
+
+
+			/*
+			 * Retomar posição anterior.
+			 */
+
+			if (
+				retomarEm > 0 &&
+				Number.isFinite(
+					video.duration
+				)
+			) {
+
+				video.currentTime =
+					video.duration *
+					(
+						retomarEm /
+						100
+					);
+			}
+
+		}
+	);
+
+
+	/* ---------------------------------------------------------
+	 * METADATA
+	 * --------------------------------------------------------- */
+
+	video.addEventListener(
+		'loadedmetadata',
+		() => {
+
+			$('espera').hidden =
+				false;
+		}
+	);
+
+
+	/* ---------------------------------------------------------
+	 * ERRO DO PLAYER
+	 * --------------------------------------------------------- */
+
+	video.addEventListener(
+		'error',
+		() => {
+
+			console.error(
+				'Video error:',
+				video.error
+			);
+
+
+			falhar(
+				'The video could not be played by this browser.'
+			);
+
+		}
+	);
+
+
+	/* ---------------------------------------------------------
+	 * CONTINUAR A VER
+	 * --------------------------------------------------------- */
+
+	video.addEventListener(
+		'play',
+		registar
+	);
+
+
+	video.addEventListener(
+		'timeupdate',
+		() => {
+
+			if (
+				!Number.isFinite(
+					video.duration
+				) ||
+				video.duration === 0
+			) {
+
+				return;
+			}
+
+
+			if (
+				video.currentTime -
+				ultimoEnvio < 10
+			) {
+
+				return;
+			}
+
+
+			ultimoEnvio =
+				video.currentTime;
+
+
+			guardarProgresso();
+
+		}
+	);
+
+
+	video.addEventListener(
+		'pause',
+		guardarProgresso
+	);
+
+
+	window.addEventListener(
+		'pagehide',
+		guardarProgresso
+	);
+
+
+	/* ---------------------------------------------------------
+	 * REGISTAR FILME
+	 * --------------------------------------------------------- */
+
+	async function registar() {
+
+		if (
+			registado ||
+			!token
+		) {
+
+			return;
+		}
+
+
+		registado = true;
+
+
+		try {
+
+			await chamar(
+				'registar',
+				{
+					titulo:
+						arquivo,
+
+					categoria:
+						'',
+
+					extra:
+						'',
+
+					arte:
+						''
+				}
+			);
+
+		} catch (err) {
+
+			console.error(
+				'Registar:',
+				err
+			);
+
+		}
+	}
+
+
+	/* ---------------------------------------------------------
+	 * GUARDAR PROGRESSO
+	 * --------------------------------------------------------- */
+
+	function guardarProgresso() {
+
+		if (
+			!token ||
+			!Number.isFinite(
+				video.duration
+			) ||
+			video.duration === 0
+		) {
+
+			return;
+		}
+
+
+		const pct =
+			Math.round(
+				(
+					video.currentTime /
+					video.duration
+				) * 100
+			);
+
+
+		if (pct <= 0) {
+			return;
+		}
+
+
+		try {
+
+			chamar(
+				'progresso',
+				{
+					titulo:
+						arquivo,
+
+					progresso:
+						Math.min(
+							100,
+							pct
+						)
+				}
+			);
+
+		} catch (err) {
+
+			console.error(
+				'Progresso:',
+				err
+			);
+
+		}
+	}
+
+
+	/* ---------------------------------------------------------
+	 * POST CONTINUAR
+	 * --------------------------------------------------------- */
+
+	function chamar(
+		action,
+		campos
+	) {
+
+		const corpo =
+			new FormData();
+
+
+		corpo.append(
+			'action',
+			action
+		);
+
+
+		corpo.append(
+			'token',
+			token
+		);
+
+
+		Object.entries(
+			campos
+		).forEach(
+			([k, v]) =>
+				corpo.append(
+					k,
+					v
+				)
+		);
+
+
+		return fetch(
+			CONTINUAR,
+			{
+				method: 'POST',
+
+				headers: {
+					'X-Requested-With':
+						'XMLHttpRequest',
+
+					'Accept':
+						'application/json'
+				},
+
+				credentials:
+					'same-origin',
+
+				body:
+					corpo,
+
+				keepalive:
+					true
+			}
+		);
+	}
+
+</script>
 
 </body>
 </html>
